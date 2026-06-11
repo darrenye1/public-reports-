@@ -2607,19 +2607,329 @@ def _historical_fcfe_detail(data: CompanyData, max_years: int = 4) -> list[dict[
     return details
 
 
+def _fetch_peer_ps(ticker: str) -> float | None:
+    try:
+        ps = get_info_value(yf.Ticker(ticker).info or {}, "priceToSalesTrailing12Months")
+        return float(ps) if ps else None
+    except Exception:
+        return None
+
+
+def _excel_style_header(cell, hdr_fill, hdr_font) -> None:
+    cell.fill = hdr_fill
+    cell.font = hdr_font
+
+
+def _add_peer_multiples_sheet(
+    wb,
+    comp_analysis: CompetitorAnalysis,
+    summary: FinancialSummary,
+    comps: CompsResult,
+    hdr_fill,
+    hdr_font,
+    title_font,
+    num_fmt_px,
+) -> dict[str, str]:
+    """Peer table with MEDIAN formulas; returns cell refs for comps sheet."""
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+
+    ws = wb.create_sheet("Peer Multiples")
+    ws["A1"] = "Comparable company multiples (Yahoo Finance)"
+    ws["A1"].font = title_font
+    ws["A2"] = "P/E and EV/EBITDA medians include subject; P/S median uses peers only (matches Python model)."
+
+    headers = ["Ticker", "Company", "P/E", "EV/EBITDA", "P/S"]
+    for c, h in enumerate(headers, start=1):
+        cell = ws.cell(row=4, column=c, value=h)
+        _excel_style_header(cell, hdr_fill, hdr_font)
+
+    row = 5
+    peer_ps: list[float] = []
+    for p in comp_analysis.peers:
+        ps = _fetch_peer_ps(p.ticker)
+        if ps:
+            peer_ps.append(ps)
+        ws.cell(row=row, column=1, value=p.ticker)
+        ws.cell(row=row, column=2, value=p.name)
+        ws.cell(row=row, column=3, value=p.pe_ratio)
+        ws.cell(row=row, column=4, value=p.ev_ebitda)
+        ws.cell(row=row, column=5, value=ps)
+        for col in (3, 4, 5):
+            ws.cell(row=row, column=col).number_format = "0.00x" if col < 5 else "0.00x"
+        row += 1
+
+    peer_start = 5
+    peer_end = row - 1
+    sub_row = row
+    ws.cell(row=sub_row, column=1, value=comp_analysis.target_ticker)
+    ws.cell(row=sub_row, column=2, value=summary.company_name[:24])
+    ws.cell(row=sub_row, column=3, value=summary.pe_ratio)
+    ws.cell(row=sub_row, column=4, value=summary.ev_ebitda)
+    sub_ps = _fetch_peer_ps(comp_analysis.target_ticker)
+    ws.cell(row=sub_row, column=5, value=sub_ps)
+    for col in range(1, 6):
+        ws.cell(row=sub_row, column=col).font = Font(bold=True)
+
+    med_row = sub_row + 1
+    ws.cell(row=med_row, column=2, value="Median P/E (peers + subject)")
+    ws.cell(row=med_row, column=3, value=f"=MEDIAN(C{peer_start}:C{sub_row})")
+    med_ev_row = med_row + 1
+    ws.cell(row=med_ev_row, column=2, value="Median EV/EBITDA (peers + subject)")
+    ws.cell(row=med_ev_row, column=4, value=f"=MEDIAN(D{peer_start}:D{sub_row})")
+    med_ps_row = med_ev_row + 1
+    ws.cell(row=med_ps_row, column=2, value="Median P/S (peers only)")
+    if peer_end >= peer_start:
+        ws.cell(row=med_ps_row, column=5, value=f"=MEDIAN(E{peer_start}:E{peer_end})")
+    else:
+        ws.cell(row=med_ps_row, column=5, value=comps.peer_median_ps)
+
+    ws.cell(row=med_row + 4, column=1, value="Python reference (peer_median_pe)")
+    ws.cell(row=med_row + 4, column=3, value=comps.peer_median_pe)
+    ws.cell(row=med_row + 5, column=1, value="Python reference (peer_median_ev_ebitda)")
+    ws.cell(row=med_row + 5, column=4, value=comps.peer_median_ev_ebitda)
+    ws.cell(row=med_row + 6, column=1, value="Python reference (peer_median_ps)")
+    ws.cell(row=med_row + 6, column=5, value=comps.peer_median_ps)
+
+    ws.column_dimensions["A"].width = 12
+    ws.column_dimensions["B"].width = 28
+    for col in ("C", "D", "E"):
+        ws.column_dimensions[col].width = 14
+
+    return {
+        "med_pe": f"'Peer Multiples'!C{med_row}",
+        "med_ev": f"'Peer Multiples'!D{med_ev_row}",
+        "med_ps": f"'Peer Multiples'!E{med_ps_row}",
+    }
+
+
+def _add_comps_valuation_sheet(
+    wb,
+    data: CompanyData,
+    summary: FinancialSummary,
+    comps: CompsResult,
+    peer_refs: dict[str, str],
+    hdr_fill,
+    hdr_font,
+    title_font,
+    num_fmt_m,
+    num_fmt_px,
+) -> dict[str, str]:
+    """Comps implied prices with Excel formulas."""
+    ws = wb.create_sheet("Comps Valuation")
+    ws["A1"] = "Comparable multiples — implied share price"
+    ws["A1"].font = title_font
+    ws["A2"] = "Implied price = f(peer median multiple, subject fundamentals, shares outstanding)."
+
+    info = data.info
+    eps = get_info_value(info, "trailingEps")
+    ebitda = get_ebitda(data.financials, info)
+    revenue = get_revenue(data.financials, info)
+    net_debt = get_net_debt(data.balance_sheet) or 0
+    shares = get_shares_outstanding(info)
+
+    fund = [
+        ("Trailing EPS ($/sh)", eps),
+        ("EBITDA ($)", ebitda),
+        ("Revenue ($)", revenue),
+        ("Net debt ($)", net_debt),
+        ("Shares outstanding", shares),
+        ("Current price ($/sh)", summary.current_price),
+    ]
+    ws["A4"] = "Subject fundamentals"
+    ws["A4"].font = title_font
+    for i, (lab, val) in enumerate(fund, start=5):
+        ws.cell(row=i, column=1, value=lab)
+        ws.cell(row=i, column=2, value=val)
+        fmt = num_fmt_px if "EPS" in lab or "price" in lab else num_fmt_m
+        if "Shares" in lab:
+            fmt = "#,##0"
+        ws.cell(row=i, column=2).number_format = fmt
+
+    r_eps, r_ebitda, r_rev, r_nd, r_sh, r_px = 5, 6, 7, 8, 9, 10
+
+    ws["A12"] = "Method"
+    ws["B12"] = "Calculation (formula)"
+    ws["C12"] = "Implied $/sh"
+    for c in range(1, 4):
+        _excel_style_header(ws.cell(row=12, column=c), hdr_fill, hdr_font)
+
+    ws["A13"] = "P/E (peer median × EPS)"
+    ws["B13"] = f"Median P/E × B{r_eps} (EPS)"
+    ws["C13"] = (
+        f"=IF(OR({peer_refs['med_pe']}=\"\",B{r_eps}=\"\",B{r_eps}<=0),\"\","
+        f"{peer_refs['med_pe']}*B{r_eps})"
+    )
+
+    ws["A14"] = "EV/EBITDA (implied equity / shares)"
+    ws["B14"] = f"(Median EV/EBITDA × B{r_ebitda} − B{r_nd}) / B{r_sh}"
+    ws["C14"] = (
+        f"=IF(OR({peer_refs['med_ev']}=\"\",B{r_ebitda}=\"\",B{r_ebitda}<=0,B{r_sh}=\"\",B{r_sh}<=0),"
+        f"\"\",(({peer_refs['med_ev']}*B{r_ebitda})-B{r_nd})/B{r_sh})"
+    )
+
+    ws["A15"] = "P/S (implied equity / shares)"
+    ws["B15"] = f"(Median P/S × B{r_rev}) / B{r_sh}"
+    ws["C15"] = (
+        f"=IF(OR({peer_refs['med_ps']}=\"\",B{r_rev}=\"\",B{r_rev}<=0,B{r_sh}=\"\",B{r_sh}<=0),"
+        f"\"\",({peer_refs['med_ps']}*B{r_rev})/B{r_sh})"
+    )
+
+    ws["A16"] = "Comps blended (average of available)"
+    ws["B16"] = "=AVERAGE(C13:C15)"
+    ws["C16"] = "=IF(COUNT(C13,C14,C15)=0,\"\",AVERAGE(C13,C14,C15))"
+
+    for r in (13, 14, 15, 16):
+        ws.cell(row=r, column=3).number_format = num_fmt_px
+
+    ws.cell(row=18, column=1, value="Python reference (blended_fair_value)")
+    ws.cell(row=18, column=2, value=comps.blended_fair_value)
+    ws.cell(row=18, column=2).number_format = num_fmt_px
+
+    ws.column_dimensions["A"].width = 36
+    ws.column_dimensions["B"].width = 48
+    ws.column_dimensions["C"].width = 16
+
+    return {"comps_blended": "C16", "current": f"B{r_px}"}
+
+
+def _add_analyst_sheet(
+    wb,
+    summary: FinancialSummary,
+    hdr_fill,
+    hdr_font,
+    title_font,
+    num_fmt_px,
+    num_fmt_pct,
+) -> dict[str, str]:
+    ws = wb.create_sheet("Analyst Consensus")
+    ws["A1"] = "Analyst consensus (Yahoo Finance targetMeanPrice)"
+    ws["A1"].font = title_font
+    ws["A2"] = "Used as one input to the blended target (no formula derivation — market consensus)."
+
+    ws["A4"] = "Field"
+    ws["B4"] = "Value"
+    _excel_style_header(ws["A4"], hdr_fill, hdr_font)
+    _excel_style_header(ws["B4"], hdr_fill, hdr_font)
+
+    ws["A5"] = "Analyst mean target ($/sh)"
+    ws["B5"] = summary.analyst_target
+    ws["B5"].number_format = num_fmt_px
+    ws["A6"] = "Current price ($/sh)"
+    ws["B6"] = summary.current_price
+    ws["B6"].number_format = num_fmt_px
+    ws["A7"] = "Upside vs. current"
+    ws["B7"] = '=IF(OR(B5="",B6="",B6=0),"",B5/B6-1)'
+    ws["B7"].number_format = num_fmt_pct
+
+    ws.column_dimensions["A"].width = 32
+    ws.column_dimensions["B"].width = 18
+    return {"analyst_target": "B5", "current": "B6"}
+
+
+def _add_valuation_summary_sheet(
+    wb,
+    valuation: ValuationSummary,
+    comps_refs: dict[str, str],
+    analyst_refs: dict[str, str],
+    hdr_fill,
+    hdr_font,
+    title_font,
+    num_fmt_px,
+    num_fmt_pct,
+) -> None:
+    ws = wb.create_sheet("Valuation Summary")
+    ws["A1"] = "Multi-method valuation — blended target"
+    ws["A1"].font = title_font
+    ws["A2"] = (
+        "Base weights: DCF 28%, Comps 44%, Analyst 28%. "
+        "Effective weights reflect outlier / reliability exclusions from the Python model."
+    )
+
+    headers = ["Method", "Implied $/sh", "vs. Current", "Base weight", "Effective weight", "Notes"]
+    for c, h in enumerate(headers, start=1):
+        _excel_style_header(ws.cell(row=4, column=c, value=h), hdr_fill, hdr_font)
+
+    current = f"'Comps Valuation'!{comps_refs['current']}"
+    base_w = {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28}
+
+    methods = [
+        (
+            "DCF (Simon FCFE)",
+            "=DCF!B28",
+            "DCF",
+            valuation.excluded_methods.get("DCF", "Included in blend" if valuation.dcf_reliable else ""),
+        ),
+        (
+            "Comps (blended multiples)",
+            f"='Comps Valuation'!{comps_refs['comps_blended']}",
+            "Comps",
+            valuation.excluded_methods.get("Comps", "Included in blend" if valuation.comps_reliable else ""),
+        ),
+        (
+            "Analyst consensus",
+            f"='Analyst Consensus'!{analyst_refs['analyst_target']}",
+            "Analyst",
+            valuation.excluded_methods.get("Analyst", "Included in blend" if valuation.analyst_reliable else ""),
+        ),
+    ]
+
+    for i, (label, price_formula, key, note) in enumerate(methods, start=5):
+        ws.cell(row=i, column=1, value=label)
+        ws.cell(row=i, column=2, value=price_formula)
+        ws.cell(row=i, column=2).number_format = num_fmt_px
+        ws.cell(row=i, column=3, value=f"=IF(OR(B{i}=\"\",{current}=\"\",{current}=0),\"\",B{i}/{current}-1)")
+        ws.cell(row=i, column=3).number_format = num_fmt_pct
+        ws.cell(row=i, column=4, value=base_w[key])
+        ws.cell(row=i, column=4).number_format = num_fmt_pct
+        eff = valuation.blend_weights.get(key, 0.0)
+        ws.cell(row=i, column=5, value=eff if key in valuation.blend_weights else 0.0)
+        ws.cell(row=i, column=5).number_format = num_fmt_pct
+        ws.cell(row=i, column=6, value=note or ("Included in blend" if eff else "Excluded"))
+
+    blend_row = 9
+    ws.cell(row=blend_row, column=1, value="Blended target (effective weights)")
+    ws.cell(row=blend_row, column=2, value="=SUMPRODUCT(E5:E7,B5:B7)")
+    ws.cell(row=blend_row, column=2).number_format = num_fmt_px
+    ws.cell(row=blend_row, column=3, value=f"=IF(OR(B{blend_row}=\"\",{current}=\"\",{current}=0),\"\",B{blend_row}/{current}-1)")
+    ws.cell(row=blend_row, column=3).number_format = num_fmt_pct
+    ws.cell(row=blend_row, column=4, value=1.0)
+    ws.cell(row=blend_row, column=4).number_format = num_fmt_pct
+    ws.cell(row=blend_row, column=6, value=valuation.recommendation)
+
+    ws.cell(row=blend_row + 2, column=1, value="Formula check (if all methods included, normalized base weights)")
+    ws.cell(row=blend_row + 2, column=2, value="=SUMPRODUCT($D$5:$D$7/SUM($D$5:$D$7),B5:B7)")
+    ws.cell(row=blend_row + 2, column=2).number_format = num_fmt_px
+
+    ws.cell(row=blend_row + 3, column=1, value="Python reference (target_price)")
+    ws.cell(row=blend_row + 3, column=2, value=valuation.target_price)
+    ws.cell(row=blend_row + 3, column=2).number_format = num_fmt_px
+
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 16
+    ws.column_dimensions["F"].width = 44
+
+
 def export_simon_valuation_excel(
     ticker: str,
     data: CompanyData,
     summary: FinancialSummary,
-    dcf: DCFResult,
+    valuation: ValuationSummary,
+    comp_analysis: CompetitorAnalysis,
     output_path: str,
 ) -> str:
     """
-    Export Simon-style FCFE/DCF workbook (structure aligned with Simon Valuation model.xlsx).
+    Export Simon-style FCFE/DCF workbook with comps, analyst, and blended summary (formula-linked).
     """
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
+
+    dcf = valuation.dcf
+    comps = valuation.comps
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     wb = Workbook()
@@ -2661,7 +2971,10 @@ def export_simon_valuation_excel(
     ]
     for i, (lab, val) in enumerate(labels, start=3):
         ws_a[f"A{i}"] = lab
-        ws_a[f"B{i}"] = val
+        if lab == "Cost of common equity (Ke)":
+            ws_a[f"B{i}"] = "=B7+B9*B8"
+        else:
+            ws_a[f"B{i}"] = val
         if lab.endswith("(Rf)") or lab.endswith("(ERP)") or lab in ("Cost of common equity (Ke)", "Terminal growth (g)", "FCFE growth (forecast)"):
             ws_a[f"B{i}"].number_format = num_fmt_pct
         if "FCFE" in lab or "price" in lab.lower():
@@ -2807,7 +3120,20 @@ def export_simon_valuation_excel(
         if len(row) > 1:
             ws_v.cell(row=ri, column=2, value=row[1])
 
-    for ws in (ws_a, ws_h, ws_d, ws_v):
+    peer_refs = _add_peer_multiples_sheet(
+        wb, comp_analysis, summary, comps, hdr_fill, hdr_font, title_font, num_fmt_px,
+    )
+    comps_refs = _add_comps_valuation_sheet(
+        wb, data, summary, comps, peer_refs, hdr_fill, hdr_font, title_font, num_fmt_m, num_fmt_px,
+    )
+    analyst_refs = _add_analyst_sheet(
+        wb, summary, hdr_fill, hdr_font, title_font, num_fmt_px, num_fmt_pct,
+    )
+    _add_valuation_summary_sheet(
+        wb, valuation, comps_refs, analyst_refs, hdr_fill, hdr_font, title_font, num_fmt_px, num_fmt_pct,
+    )
+
+    for ws in wb.worksheets:
         ws.column_dimensions["A"].width = 42
         for col in range(2, 12):
             ws.column_dimensions[get_column_letter(col)].width = 14
@@ -2937,7 +3263,7 @@ def main() -> int:
             args.output_dir, f"{ticker}_Simon_Valuation.xlsx"
         )
         print(f"Exporting Simon DCF Excel -> {excel_path}")
-        export_simon_valuation_excel(ticker, data, summary, valuation.dcf, excel_path)
+        export_simon_valuation_excel(ticker, data, summary, valuation, competitors, excel_path)
 
     print("\n" + "=" * 50)
     print(f"  {summary.company_name} ({ticker})")
