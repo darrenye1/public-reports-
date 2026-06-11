@@ -9,11 +9,15 @@
   <meta property="og:url" content="https://public-reports-one.vercel.app/" />
   <meta property="og:title" content="Darren Ye - Equity Research Automated Dashboard" />
   <meta property="og:description" content="Top 20 US mega-cap summary with DCF, comps, and analyst cross-check. Download sell-side-style PDF reports." />
-  <meta property="og:image" content="https://public-reports-one.vercel.app/og-preview.png" />
+  <meta property="og:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
+  <meta property="og:image:secure_url" content="https://public-reports-one.vercel.app/social-card.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:height" content="627" />
+  <meta property="og:image:alt" content="Darren Ye Equity Research Dashboard preview" />
+  <link rel="image_src" href="https://public-reports-one.vercel.app/social-card.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="https://public-reports-one.vercel.app/og-preview.png" />
+  <meta name="twitter:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
   <style>
     :root{
       --bg:#0b1220; --card:#111b2e; --muted:#a9b4c7; --text:#e9eef7;
@@ -31,7 +35,7 @@
     }
     a{color:var(--accent); text-decoration:none}
     a:hover{text-decoration:underline}
-    .wrap{max-width:1100px; margin:0 auto; padding:28px 18px 60px}
+    .wrap{max-width:1180px; margin:0 auto; padding:28px 18px 60px}
     .hero{
       display:flex; gap:16px; align-items:flex-start; justify-content:space-between;
       padding:20px; border:1px solid var(--border); border-radius:18px;
@@ -45,7 +49,7 @@
       background: rgba(255,255,255,.03); margin-right:8px; margin-top:10px;
     }
     .grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; margin-top:16px}
-    @media (max-width: 900px){ .grid{grid-template-columns:1fr} }
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr} .hero{flex-direction:column} }
     .card{
       padding:18px; border:1px solid var(--border); border-radius:18px;
       background: rgba(17,27,46,.72);
@@ -66,21 +70,56 @@
       background: rgba(255,255,255,.03); color: var(--text); cursor:pointer; font-size:13px;
     }
     .btn:hover{background: rgba(255,255,255,.06)}
-    table{
-      width:100%; border-collapse:separate; border-spacing:0; margin-top:12px;
+    .report-grid{
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));
+      gap:10px; margin-top:10px;
+    }
+    .report-btn{
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      min-height:64px; padding:12px 8px; border-radius:14px;
+      border:1px solid rgba(96,165,250,.4);
+      background:linear-gradient(180deg, rgba(96,165,250,.14), rgba(17,27,46,.85));
+      color:var(--text); text-decoration:none; font-weight:700; font-size:15px;
+      letter-spacing:.03em; transition:transform .15s ease, border-color .15s, box-shadow .15s;
+      box-shadow:0 2px 8px rgba(0,0,0,.2);
+    }
+    .report-btn:hover{
+      text-decoration:none; transform:translateY(-2px);
+      border-color:var(--accent); box-shadow:0 6px 16px rgba(96,165,250,.2);
+      background:linear-gradient(180deg, rgba(96,165,250,.22), rgba(17,27,46,.9));
+    }
+    .report-btn .sub{font-size:10px; color:var(--muted); font-weight:500; margin-top:5px}
+    .table-wrap{
+      overflow:auto; margin-top:12px; max-height:70vh;
       border:1px solid var(--border); border-radius:14px; background: rgba(255,255,255,.02);
     }
-    th, td{padding:10px; border-bottom:1px solid var(--border); font-size:12px; white-space:nowrap}
-    th{text-align:left; color:#dbe7ff; background: rgba(255,255,255,.04)}
+    table{width:100%; border-collapse:separate; border-spacing:0}
+    th, td{padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; white-space:nowrap}
+    th{
+      text-align:left; color:#dbe7ff; background: rgba(17,27,46,.95);
+      position:sticky; top:0; z-index:1;
+    }
     tr:last-child td{border-bottom:none}
-    td.company{max-width:220px; overflow:hidden; text-overflow:ellipsis}
+    tr:hover td{background:rgba(255,255,255,.03)}
+    td.company{max-width:200px; overflow:hidden; text-overflow:ellipsis}
+    td.num{font-variant-numeric:tabular-nums}
+    .up-good{color:var(--good)} .up-bad{color:var(--bad)} .up-warn{color:var(--warn)}
     .badge{padding:4px 8px; border-radius:999px; font-size:11px; border:1px solid var(--border)}
     .b-good{color:var(--good)} .b-bad{color:var(--bad)} .b-warn{color:var(--warn)}
+    .pdf-link{
+      display:inline-flex; padding:5px 10px; border-radius:8px;
+      border:1px solid var(--border); background:rgba(96,165,250,.1); font-size:11px;
+    }
+    .pdf-link:hover{text-decoration:none; background:rgba(96,165,250,.2)}
+    .pdf-na{color:var(--muted); font-size:11px}
     .foot{margin-top:18px; color:var(--muted); font-size:12px}
     .links{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
     .hint{color:var(--warn); font-size:12px; margin-top:8px}
   </style>
   <script src="summary-data.js"></script>
+  <!-- Vercel Web Analytics: enable in Vercel project ? Settings ? Analytics ? Web Analytics -->
+  <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -137,11 +176,11 @@
         <h2 style="margin-top:18px">Equity Research Project</h2>
         <p class="muted">Automated sell-side-style reports: DCF, comps, analyst cross-check, PDF (Yahoo Finance).</p>
         <div class="kvs">
-          <div class="kv"><div class="k">Top 20 Summary</div><div class="v"><a href="reports/Top20_Summary.pdf" target="_blank">PDF</a></div></div>
-          <div class="kv"><div class="k">Data</div><div class="v"><a href="reports/Top20_Summary.csv" target="_blank">CSV</a></div></div>
+          <div class="kv"><div class="k">Top 20 Summary</div><div class="v"><a href="reports/Top20_Summary.pdf" target="_blank" rel="noreferrer">PDF</a></div></div>
+          <div class="kv"><div class="k">Data</div><div class="v"><a href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">CSV</a></div></div>
         </div>
-        <h3 style="margin-top:16px">Stock reports</h3>
-        <div id="reportLinks" class="links"></div>
+        <h3 style="margin-top:16px">Stock reports — click to open PDF</h3>
+        <div id="reportLinks" class="report-grid"></div>
       </div>
     </section>
 
@@ -153,7 +192,7 @@
           <span class="pill" id="statusPill">Loading...</span>
         </div>
       </div>
-      <div style="overflow:auto">
+      <div class="table-wrap">
         <table id="summaryTable"><thead></thead><tbody></tbody></table>
       </div>
       <p class="foot" id="asOfText"></p>
@@ -164,7 +203,7 @@
 
   <script>
     const REPORT_PDFS = ["NVDA","GOOGL","AAPL","MSFT","AMZN","TSLA","BX"];
-    const COLS = ["Rank","Ticker","Company","Sector","Price","Target_Price","Upside_Pct","Rating"];
+    const COLS = ["Rank","Ticker","Company","Sector","Market_Cap","Price","Target_Price","Upside_Pct","Rating"];
 
     function reportHref(ticker) {
       const rel = "reports/" + ticker + "_research.pdf";
@@ -186,35 +225,68 @@
       return "$" + (+n).toLocaleString(undefined, { maximumFractionDigits: 2 });
     }
 
+    function fmtMktCap(n) {
+      if (n === "" || n == null || isNaN(+n)) return "N/A";
+      const x = +n;
+      if (x >= 1e12) return "$" + (x / 1e12).toFixed(2) + "T";
+      if (x >= 1e9) return "$" + (x / 1e9).toFixed(1) + "B";
+      if (x >= 1e6) return "$" + (x / 1e6).toFixed(0) + "M";
+      return "$" + x.toLocaleString();
+    }
+
     function fmtPct(n) {
       if (n === "" || n == null || isNaN(+n)) return "N/A";
       const x = +n;
-      return (x > 0 ? "+" : "") + x.toFixed(1) + "%";
+      const cls = x > 5 ? "up-good" : x < -5 ? "up-bad" : "up-warn";
+      return "<span class=\"" + cls + " num\">" + (x > 0 ? "+" : "") + x.toFixed(1) + "%</span>";
+    }
+
+    function prepareRows(rows) {
+      const sorted = rows.slice().sort(function(a, b) {
+        return (+b.Market_Cap || 0) - (+a.Market_Cap || 0);
+      });
+      sorted.forEach(function(row, i) {
+        row.Rank = String(i + 1);
+      });
+      return sorted;
     }
 
     function renderTable(rows) {
+      const data = prepareRows(rows);
       const thead = document.querySelector("#summaryTable thead");
       const tbody = document.querySelector("#summaryTable tbody");
+      const labels = {
+        Rank: "#", Ticker: "Ticker", Company: "Company", Sector: "Sector",
+        Market_Cap: "Market Cap", Price: "Price", Target_Price: "Target",
+        Upside_Pct: "Upside", Rating: "Rating"
+      };
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
-        return "<th>" + c.replace(/_/g, " ") + "</th>";
+        return "<th>" + (labels[c] || c.replace(/_/g, " ")) + "</th>";
       }).join("") + "<th>PDF</th></tr>";
 
-      tbody.innerHTML = rows.map(function(row) {
+      tbody.innerHTML = data.map(function(row) {
         const t = row.Ticker || "";
+        const hasPdf = REPORT_PDFS.indexOf(t) >= 0;
         const cells = COLS.map(function(c) {
           const v = row[c];
-          if (c === "Price" || c === "Target_Price") return "<td>" + fmtMoney(v) + "</td>";
+          if (c === "Market_Cap") return "<td class=\"num\">" + fmtMktCap(v) + "</td>";
+          if (c === "Price" || c === "Target_Price") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
           if (c === "Upside_Pct") return "<td>" + fmtPct(v) + "</td>";
           if (c === "Company") return "<td class=\"company\">" + (v || "") + "</td>";
           if (c === "Rating") return "<td>" + ratingBadge(v) + "</td>";
+          if (c === "Rank") return "<td class=\"num\">" + (v || "") + "</td>";
           return "<td>" + (v || "") + "</td>";
         }).join("");
-        return "<tr>" + cells + "<td><a href=\"" + reportHref(t) + "\" target=\"_blank\">Open</a></td></tr>";
+        const pdfCell = hasPdf
+          ? "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">Open PDF</a>"
+          : "<span class=\"pdf-na\">—</span>";
+        return "<tr>" + cells + "<td>" + pdfCell + "</td></tr>";
       }).join("");
     }
 
     document.getElementById("reportLinks").innerHTML = REPORT_PDFS.map(function(t) {
-      return "<a class=\"btn\" href=\"" + reportHref(t) + "\" target=\"_blank\">" + t + "</a>";
+      return "<a class=\"report-btn\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">"
+        + t + "<span class=\"sub\">PDF Report</span></a>";
     }).join("");
 
     async function loadSummary() {
@@ -226,7 +298,7 @@
       if (window.SUMMARY_ROWS && window.SUMMARY_ROWS.length) {
         renderTable(window.SUMMARY_ROWS);
         document.getElementById("asOfText").textContent =
-          "Loaded from summary-data.js (" + window.SUMMARY_ROWS.length + " companies).";
+          "Sorted by market cap (high to low) · " + window.SUMMARY_ROWS.length + " companies.";
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }
@@ -244,17 +316,18 @@
           return o;
         });
         renderTable(rows);
+        document.getElementById("asOfText").textContent =
+          "Sorted by market cap (high to low) · " + rows.length + " companies.";
         status.textContent = "OK (" + rows.length + ")";
-        return;
       } catch (e) {
         status.textContent = "Failed";
-        hint.textContent = "Run sync_website.bat first, then refresh. (Double-click index.html needs summary-data.js)";
+        hint.textContent = "Run sync_website.bat first, then refresh.";
         throw e;
       }
     }
 
     document.getElementById("reloadBtn").onclick = function() {
-      loadSummary().catch(function(e) { console.error(e); alert(e.message); });
+      loadSummary().catch(function(e) { console.error(e); });
     };
     loadSummary().catch(function(e) { console.error(e); });
   </script>
