@@ -1,3 +1,4 @@
+window.DATA_AS_OF = "2026-06-12";
 window.SUMMARY_ROWS = [
   {
     "Rank": "1",

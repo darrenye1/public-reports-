@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Darren Ye - Portfolio and Equity Research</title>
-  <meta name="description" content="Interactive Top 20 US mega-cap equity summary with blended valuation and downloadable PDF research reports." />
+  <meta name="description" content="Automated US mega-cap equity research: DCF, comps, analyst blend, PDF reports and live Top 20 dashboard." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://public-reports-one.vercel.app/" />
   <meta property="og:title" content="Darren Ye - Equity Research Automated Dashboard" />
@@ -14,7 +14,6 @@
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="627" />
-  <meta property="og:image:alt" content="Darren Ye Equity Research Dashboard preview" />
   <link rel="image_src" href="https://public-reports-one.vercel.app/social-card.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
@@ -25,115 +24,197 @@
       --border:rgba(255,255,255,.08);
     }
     *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
     body{
       margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      background: radial-gradient(1200px 800px at 20% 0%, rgba(96,165,250,.22), transparent 60%),
-                  radial-gradient(900px 700px at 90% 10%, rgba(52,211,153,.14), transparent 55%),
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background:radial-gradient(1200px 800px at 20% 0%,rgba(96,165,250,.22),transparent 60%),
+                  radial-gradient(900px 700px at 90% 10%,rgba(52,211,153,.14),transparent 55%),
                   var(--bg);
-      color:var(--text);
+      color:var(--text); line-height:1.45;
     }
-    a{color:var(--accent); text-decoration:none}
+    a{color:var(--accent);text-decoration:none}
     a:hover{text-decoration:underline}
-    .wrap{max-width:1180px; margin:0 auto; padding:28px 18px 60px}
+    .nav{
+      position:sticky;top:0;z-index:20;
+      backdrop-filter:blur(12px);background:rgba(11,18,32,.88);
+      border-bottom:1px solid var(--border);
+    }
+    .nav-inner{
+      max-width:1180px;margin:0 auto;padding:10px 18px;
+      display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    }
+    .nav-brand{font-weight:700;font-size:14px;color:var(--text)}
+    .nav-links{display:flex;gap:6px;flex-wrap:wrap}
+    .nav-links a{
+      padding:6px 12px;border-radius:999px;font-size:12px;color:var(--muted);
+      border:1px solid transparent;
+    }
+    .nav-links a:hover{color:var(--text);border-color:var(--border);text-decoration:none;background:rgba(255,255,255,.04)}
+    .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px}
     .hero{
-      display:flex; gap:16px; align-items:flex-start; justify-content:space-between;
-      padding:20px; border:1px solid var(--border); border-radius:18px;
-      background: linear-gradient(180deg, rgba(17,27,46,.92), rgba(17,27,46,.55));
+      display:flex;gap:20px;align-items:flex-start;justify-content:space-between;
+      padding:22px;border:1px solid var(--border);border-radius:18px;
+      background:linear-gradient(180deg,rgba(17,27,46,.92),rgba(17,27,46,.55));
     }
-    .hero h1{margin:0 0 8px; font-size:26px}
-    .hero p{margin:0; color:var(--muted); line-height:1.45}
+    .hero h1{margin:0 0 6px;font-size:28px}
+    .hero-tag{color:var(--accent);font-size:13px;font-weight:600;margin:0 0 10px}
+    .hero p{margin:0;color:var(--muted);max-width:52ch}
     .pill{
-      display:inline-flex; padding:7px 10px; border:1px solid var(--border);
-      border-radius:999px; color:var(--muted); font-size:12px;
-      background: rgba(255,255,255,.03); margin-right:8px; margin-top:10px;
+      display:inline-flex;padding:6px 10px;border:1px solid var(--border);
+      border-radius:999px;color:var(--muted);font-size:11px;
+      background:rgba(255,255,255,.03);margin:8px 6px 0 0;
     }
-    .grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; margin-top:16px}
-    @media (max-width: 900px){ .grid{grid-template-columns:1fr} .hero{flex-direction:column} }
     .card{
-      padding:18px; border:1px solid var(--border); border-radius:18px;
-      background: rgba(17,27,46,.72);
+      padding:18px;border:1px solid var(--border);border-radius:18px;
+      background:rgba(17,27,46,.72);margin-top:16px;
     }
-    .card h2{margin:0 0 10px; font-size:16px}
-    .card h3{margin:14px 0 8px; font-size:14px; color:#dbe7ff}
-    ul{margin:8px 0 0 18px; color:var(--muted)}
-    li{margin:6px 0; line-height:1.35}
+    .card h2{margin:0 0 12px;font-size:17px}
+    .card h3{margin:0 0 8px;font-size:14px;color:#dbe7ff}
     .muted{color:var(--muted)}
-    .kvs{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
-    .kv{padding:10px; border:1px solid var(--border); border-radius:14px; background: rgba(255,255,255,.03)}
-    .kv .k{font-size:12px; color:var(--muted)}
-    .kv .v{margin-top:4px; font-weight:650}
-    .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-    .btn{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:9px 12px; border-radius:12px; border:1px solid var(--border);
-      background: rgba(255,255,255,.03); color: var(--text); cursor:pointer; font-size:13px;
+    .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+    @media(max-width:700px){.kpi-row{grid-template-columns:1fr}}
+    .kpi{
+      padding:14px;border:1px solid var(--border);border-radius:14px;
+      background:rgba(255,255,255,.03);text-align:center;
     }
-    .btn:hover{background: rgba(255,255,255,.06)}
+    .kpi-n{font-size:26px;font-weight:800;color:var(--accent)}
+    .kpi-l{font-size:11px;color:var(--muted);margin-top:4px}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    @media(max-width:800px){.steps{grid-template-columns:1fr}}
+    .step{
+      padding:12px;border:1px solid var(--border);border-radius:12px;
+      background:rgba(255,255,255,.02);font-size:12px;color:var(--muted);
+    }
+    .step b{display:block;color:var(--text);font-size:13px;margin-bottom:4px}
+    .step-num{color:var(--accent);font-weight:800;margin-right:4px}
+    .dl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    @media(max-width:500px){.dl-row{grid-template-columns:1fr}}
+    .dl-btn{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      padding:14px;border-radius:14px;border:1px solid rgba(52,211,153,.35);
+      background:linear-gradient(180deg,rgba(52,211,153,.12),rgba(17,27,46,.85));
+      color:var(--text);font-weight:650;font-size:13px;text-decoration:none;
+      transition:transform .15s,border-color .15s;
+    }
+    .dl-btn:hover{text-decoration:none;transform:translateY(-1px);border-color:var(--good)}
+    .dl-btn.alt{border-color:rgba(96,165,250,.35);background:linear-gradient(180deg,rgba(96,165,250,.12),rgba(17,27,46,.85))}
+    .dl-btn.alt:hover{border-color:var(--accent)}
     .report-grid{
-      display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));
-      gap:10px; margin-top:10px;
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+      gap:10px;margin-top:12px;
     }
     .report-btn{
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      min-height:64px; padding:12px 8px; border-radius:14px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:72px;padding:10px 8px;border-radius:14px;
       border:1px solid rgba(96,165,250,.4);
-      background:linear-gradient(180deg, rgba(96,165,250,.14), rgba(17,27,46,.85));
-      color:var(--text); text-decoration:none; font-weight:700; font-size:15px;
-      letter-spacing:.03em; transition:transform .15s ease, border-color .15s, box-shadow .15s;
+      background:linear-gradient(180deg,rgba(96,165,250,.14),rgba(17,27,46,.85));
+      color:var(--text);text-decoration:none;font-weight:800;font-size:15px;
+      transition:transform .15s,border-color .15s,box-shadow .15s;
       box-shadow:0 2px 8px rgba(0,0,0,.2);
     }
     .report-btn:hover{
-      text-decoration:none; transform:translateY(-2px);
-      border-color:var(--accent); box-shadow:0 6px 16px rgba(96,165,250,.2);
-      background:linear-gradient(180deg, rgba(96,165,250,.22), rgba(17,27,46,.9));
+      text-decoration:none;transform:translateY(-2px);
+      border-color:var(--accent);box-shadow:0 6px 16px rgba(96,165,250,.2);
     }
-    .report-btn .sub{font-size:10px; color:var(--muted); font-weight:500; margin-top:5px}
+    .report-btn .sub{font-size:10px;color:var(--muted);font-weight:500;margin-top:4px}
+    .report-btn .rtg{font-size:10px;font-weight:700;margin-top:3px;padding:2px 6px;border-radius:999px}
+    .rtg-good{color:var(--good);background:rgba(52,211,153,.12)}
+    .rtg-bad{color:var(--bad);background:rgba(251,113,133,.12)}
+    .rtg-warn{color:var(--warn);background:rgba(251,191,36,.12)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .btn{
+      display:inline-flex;align-items:center;padding:8px 12px;border-radius:10px;
+      border:1px solid var(--border);background:rgba(255,255,255,.03);
+      color:var(--text);cursor:pointer;font-size:13px;
+    }
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .search{
+      padding:8px 12px;border-radius:10px;border:1px solid var(--border);
+      background:rgba(0,0,0,.2);color:var(--text);font-size:13px;min-width:180px;
+    }
+    .search::placeholder{color:var(--muted)}
     .table-wrap{
-      overflow:auto; margin-top:12px; max-height:70vh;
-      border:1px solid var(--border); border-radius:14px; background: rgba(255,255,255,.02);
+      overflow:auto;margin-top:12px;max-height:68vh;
+      border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);
     }
-    table{width:100%; border-collapse:separate; border-spacing:0}
-    th, td{padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; white-space:nowrap}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    th,td{padding:9px 11px;border-bottom:1px solid var(--border);font-size:11.5px;white-space:nowrap}
     th{
-      text-align:left; color:#dbe7ff; background: rgba(17,27,46,.95);
-      position:sticky; top:0; z-index:1;
+      text-align:left;color:#dbe7ff;background:rgba(17,27,46,.97);
+      position:sticky;top:0;z-index:1;cursor:pointer;user-select:none;
     }
+    th:hover{color:var(--accent)}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(255,255,255,.03)}
-    td.company{max-width:200px; overflow:hidden; text-overflow:ellipsis}
+    tr.clickable{cursor:pointer}
+    tr.clickable:hover td{background:rgba(96,165,250,.08)}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    td.company{max-width:160px;overflow:hidden;text-overflow:ellipsis}
     td.num{font-variant-numeric:tabular-nums}
     .up-good{color:var(--good)} .up-bad{color:var(--bad)} .up-warn{color:var(--warn)}
-    .badge{padding:4px 8px; border-radius:999px; font-size:11px; border:1px solid var(--border)}
-    .b-good{color:var(--good)} .b-bad{color:var(--bad)} .b-warn{color:var(--warn)}
-    .pdf-link{
-      display:inline-flex; padding:5px 10px; border-radius:8px;
-      border:1px solid var(--border); background:rgba(96,165,250,.1); font-size:11px;
+    .badge{
+      padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;
+      border:1px solid transparent;display:inline-block;
     }
-    .pdf-link:hover{text-decoration:none; background:rgba(96,165,250,.2)}
-    .pdf-na{color:var(--muted); font-size:11px}
-    .foot{margin-top:18px; color:var(--muted); font-size:12px}
-    .links{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
-    .hint{color:var(--warn); font-size:12px; margin-top:8px}
+    .b-good{color:var(--good);background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
+    .b-bad{color:var(--bad);background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.35)}
+    .b-warn{color:var(--warn);background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.35)}
+    .pdf-link{
+      display:inline-flex;padding:4px 9px;border-radius:8px;font-size:10px;
+      border:1px solid var(--border);background:rgba(96,165,250,.12);
+    }
+    .pdf-link:hover{text-decoration:none;background:rgba(96,165,250,.22)}
+    .pdf-sum{font-size:10px;color:var(--muted)}
+    .pdf-sum:hover{color:var(--accent);text-decoration:none}
+    details.exp{margin:10px 0;border:1px solid var(--border);border-radius:12px;padding:0 12px;background:rgba(255,255,255,.02)}
+    details.exp summary{
+      cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:#dbe7ff;list-style:none;
+    }
+    details.exp summary::-webkit-details-marker{display:none}
+    details.exp ul{margin:0 0 12px 18px;padding:0;color:var(--muted);font-size:12px}
+    details.exp li{margin:5px 0}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:900px){.grid-2{grid-template-columns:1fr}.hero{flex-direction:column}}
+    .foot{margin-top:14px;color:var(--muted);font-size:11px}
+    .site-foot{
+      text-align:center;padding:16px;border-top:1px solid var(--border);
+      color:var(--muted);font-size:11px;background:rgba(0,0,0,.25);
+    }
+    .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .hint{color:var(--warn);font-size:12px;margin-top:8px}
+    .meta-line{font-size:12px;color:var(--muted);margin-top:8px}
   </style>
   <script src="summary-data.js"></script>
-  <!-- Vercel Web Analytics: enable in Vercel project ? Settings ? Analytics ? Web Analytics -->
-  <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+  <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <span class="nav-brand">Darren Ye</span>
+      <div class="nav-links">
+        <a href="#about">About</a>
+        <a href="#research">Research</a>
+        <a href="#top20">Top 20</a>
+        <a href="#resume">Resume</a>
+      </div>
+    </div>
+  </nav>
+
   <div class="wrap">
-    <section class="hero">
+    <section class="hero" id="about">
       <div>
         <h1>Darren Ye</h1>
-        <p class="muted">
-          MSF and MMA (Expected Aug 2026). Data and financial analytics (Amazon, TCL, Guangfa Bank).
-          Forecasting, valuation, and decision-support analytics.
+        <p class="hero-tag">Equity Research &amp; Financial Analytics</p>
+        <p>
+          Built an automated equity research pipeline: Yahoo Finance data &rarr; DCF + comps + analyst blend
+          &rarr; sell-side-style PDFs and this live dashboard. MSF &amp; MMA (Expected Aug 2026).
         </p>
-        <span class="pill">Python</span><span class="pill">SQL</span>
-        <span class="pill">Power BI</span><span class="pill">Financial Modeling</span>
+        <p class="meta-line" id="dataAsOfLine">Data refresh: loading...</p>
+        <span class="pill">Python</span><span class="pill">yfinance</span><span class="pill">ReportLab</span>
+        <span class="pill">SQL</span><span class="pill">Power BI</span><span class="pill">Vercel</span>
       </div>
-      <div style="min-width:260px; text-align:right">
+      <div style="min-width:240px;text-align:right">
         <div class="muted" style="font-size:12px">Contact</div>
         <div style="margin-top:6px">
           <a href="mailto:Yexx3190@mylaurier.ca">Yexx3190@mylaurier.ca</a><br/>
@@ -141,53 +222,40 @@
         </div>
         <div class="links" style="justify-content:flex-end">
           <a class="btn" href="https://www.linkedin.com/in/darrenye11" target="_blank" rel="noreferrer">LinkedIn</a>
-          <a class="btn" href="https://github.com/darrenye1" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="btn" href="https://github.com/darren-ye/public-reports" target="_blank" rel="noreferrer">GitHub</a>
         </div>
       </div>
     </section>
 
-    <section class="grid">
-      <div class="card">
-        <h2>Experience</h2>
-        <h3>Research Assistant - Laurier (Feb 2026 - Present)</h3>
-        <ul>
-          <li>Python/SQL job-posting pipelines; skill taxonomy and gap analysis vs MMA curriculum.</li>
-        </ul>
-        <h3>Senior Financial Analyst - TCL (Mar 2022 - Apr 2023)</h3>
-        <ul>
-          <li>Python/SQL models for pricing and P&amp;L; Power BI dashboards; ROI sensitivity analysis.</li>
-        </ul>
-        <h3>Financial Analyst - Guangfa Bank (May 2019 - Mar 2022)</h3>
-        <ul>
-          <li>SQL credit-card database; forecasting and scenario analysis; 150+ project ROI audits.</li>
-        </ul>
-        <h3>Financial Analyst Co-op - Amazon Robotics (2015)</h3>
-        <ul>
-          <li>ROI models for capex; revenue forecasting for robotics warehousing.</li>
-        </ul>
+    <section class="card" id="research">
+      <h2>Equity Research Project</h2>
+      <p class="muted" style="margin:0 0 4px">
+        Top 20 US mega-caps by market cap. Refreshed on a weekly schedule with stale-data detection.
+        Educational demo only — not investment advice.
+      </p>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-n">20</div><div class="kpi-l">Mega-caps tracked</div></div>
+        <div class="kpi"><div class="kpi-n">7</div><div class="kpi-l">Deep-dive PDF reports</div></div>
+        <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Valuation methods blended</div></div>
       </div>
-      <div class="card">
-        <h2>Education</h2>
-        <ul>
-          <li><b>MMA</b> - Wilfrid Laurier University (Expected Aug 2026)</li>
-          <li><b>MSF</b> - University of Rochester (2019)</li>
-          <li><b>B.S.</b> Finance and Accounting - Northeastern University (2016)</li>
-        </ul>
-        <h2 style="margin-top:18px">Equity Research Project</h2>
-        <p class="muted">Automated sell-side-style reports: DCF, comps, analyst cross-check, PDF (Yahoo Finance).</p>
-        <div class="kvs">
-          <div class="kv"><div class="k">Top 20 Summary</div><div class="v"><a href="reports/Top20_Summary.pdf" target="_blank" rel="noreferrer">PDF</a></div></div>
-          <div class="kv"><div class="k">Data</div><div class="v"><a href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">CSV</a></div></div>
-        </div>
-        <h3 style="margin-top:16px">Stock reports � click to open PDF</h3>
-        <div id="reportLinks" class="report-grid"></div>
+      <div class="steps">
+        <div class="step"><b><span class="step-num">1.</span> Fetch</b>Yahoo Finance prices, fundamentals, and analyst targets.</div>
+        <div class="step"><b><span class="step-num">2.</span> Value</b>Simon FCFE DCF, peer multiples, and consensus cross-check with outlier filter.</div>
+        <div class="step"><b><span class="step-num">3.</span> Publish</b>Auto-generate PDF reports and sync this dashboard via GitHub &amp; Vercel.</div>
       </div>
+      <div class="dl-row">
+        <a class="dl-btn" href="reports/Top20_Summary.pdf" target="_blank" rel="noreferrer">Top 20 Summary PDF</a>
+        <a class="dl-btn alt" href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">Download CSV Data</a>
+      </div>
+      <h3 style="margin-top:18px">Stock reports — click to open PDF</h3>
+      <div id="reportLinks" class="report-grid"></div>
     </section>
 
-    <section class="card" style="margin-top:16px">
+    <section class="card" id="top20">
       <div class="toolbar">
         <h2 style="margin:0">Top 20 by Market Cap</h2>
-        <div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input class="search" id="searchBox" type="search" placeholder="Search ticker or company..." />
           <button class="btn" id="reloadBtn" type="button">Reload</button>
           <span class="pill" id="statusPill">Loading...</span>
         </div>
@@ -198,26 +266,77 @@
       <p class="foot" id="asOfText"></p>
       <p class="hint" id="hintText"></p>
     </section>
-    <p class="foot">Educational demo only. Not investment advice. Data: Yahoo Finance.</p>
+
+    <section class="card" id="resume">
+      <div class="grid-2">
+        <div>
+          <h2>Experience</h2>
+          <details class="exp" open>
+            <summary>Research Assistant — Laurier (Feb 2026 – Present)</summary>
+            <ul><li>Python/SQL job-posting pipelines; skill taxonomy and gap analysis vs MMA curriculum.</li></ul>
+          </details>
+          <details class="exp">
+            <summary>Senior Financial Analyst — TCL (Mar 2022 – Apr 2023)</summary>
+            <ul><li>Python/SQL pricing and P&amp;L models; Power BI dashboards; ROI sensitivity analysis.</li></ul>
+          </details>
+          <details class="exp">
+            <summary>Financial Analyst — Guangfa Bank (May 2019 – Mar 2022)</summary>
+            <ul><li>SQL credit-card database; forecasting; 150+ project ROI audits.</li></ul>
+          </details>
+          <details class="exp">
+            <summary>Financial Analyst Co-op — Amazon Robotics (2015)</summary>
+            <ul><li>ROI models for capex; revenue forecasting for robotics warehousing.</li></ul>
+          </details>
+        </div>
+        <div>
+          <h2>Education</h2>
+          <ul class="muted" style="margin:0 0 0 18px;font-size:13px">
+            <li><b style="color:var(--text)">MMA</b> — Wilfrid Laurier University (Expected Aug 2026)</li>
+            <li><b style="color:var(--text)">MSF</b> — University of Rochester (2019)</li>
+            <li><b style="color:var(--text)">B.S. Finance &amp; Accounting</b> — Northeastern University (2016)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <footer class="site-foot">
+    Educational demo only. Not investment advice. Data: Yahoo Finance.
+  </footer>
 
   <script>
     const REPORT_PDFS = ["NVDA","GOOGL","AAPL","MSFT","AMZN","TSLA","BX"];
-    const COLS = ["Rank","Ticker","Company","Sector","Market_Cap","Price","Target_Price","Upside_Pct","Rating"];
+    const COLS = ["Rank","Ticker","Company","Sector","Market_Cap","Price","DCF_Fair_Value","Comps_Fair_Value","Target_Price","Upside_Pct","Rating"];
+    const LABELS = {
+      Rank:"#", Ticker:"Ticker", Company:"Company", Sector:"Sector",
+      Market_Cap:"Mkt Cap", Price:"Price", DCF_Fair_Value:"DCF",
+      Comps_Fair_Value:"Comps", Target_Price:"Target", Upside_Pct:"Upside", Rating:"Rating"
+    };
+    let allRows = [];
+    let sortCol = "Market_Cap";
+    let sortAsc = false;
 
     function reportHref(ticker) {
       const rel = "reports/" + ticker + "_research.pdf";
-      if (location.protocol === "file:") return rel;
-      return "/" + rel;
+      return location.protocol === "file:" ? rel : "/" + rel;
+    }
+
+    function ratingClass(r) {
+      const u = (r || "").toUpperCase();
+      if (u === "BUY" || u === "OVERWEIGHT") return "b-good";
+      if (u === "SELL" || u === "UNDERWEIGHT") return "b-bad";
+      return "b-warn";
     }
 
     function ratingBadge(r) {
+      return "<span class=\"badge " + ratingClass(r) + "\">" + ((r || "N/A").toUpperCase()) + "</span>";
+    }
+
+    function rtgBtnClass(r) {
       const u = (r || "").toUpperCase();
-      let c = "badge ";
-      if (u === "BUY" || u === "OVERWEIGHT") c += "b-good";
-      else if (u === "SELL" || u === "UNDERWEIGHT") c += "b-bad";
-      else c += "b-warn";
-      return "<span class=\"" + c + "\">" + (u || "N/A") + "</span>";
+      if (u === "BUY" || u === "OVERWEIGHT") return "rtg-good";
+      if (u === "SELL" || u === "UNDERWEIGHT") return "rtg-bad";
+      return "rtg-warn";
     }
 
     function fmtMoney(n) {
@@ -230,8 +349,7 @@
       const x = +n;
       if (x >= 1e12) return "$" + (x / 1e12).toFixed(2) + "T";
       if (x >= 1e9) return "$" + (x / 1e9).toFixed(1) + "B";
-      if (x >= 1e6) return "$" + (x / 1e6).toFixed(0) + "M";
-      return "$" + x.toLocaleString();
+      return "$" + (x / 1e6).toFixed(0) + "M";
     }
 
     function fmtPct(n) {
@@ -241,36 +359,68 @@
       return "<span class=\"" + cls + " num\">" + (x > 0 ? "+" : "") + x.toFixed(1) + "%</span>";
     }
 
-    function prepareRows(rows) {
-      const sorted = rows.slice().sort(function(a, b) {
-        return (+b.Market_Cap || 0) - (+a.Market_Cap || 0);
-      });
-      sorted.forEach(function(row, i) {
+    function rowByTicker(t) {
+      for (let i = 0; i < allRows.length; i++) {
+        if ((allRows[i].Ticker || "").toUpperCase() === t.toUpperCase()) return allRows[i];
+      }
+      return null;
+    }
+
+    function sortRows(rows) {
+      const key = sortCol;
+      const asc = sortAsc;
+      return rows.slice().sort(function(a, b) {
+        const va = a[key], vb = b[key];
+        const na = +va, nb = +vb;
+        if (!isNaN(na) && !isNaN(nb) && va !== "" && vb !== "") {
+          return asc ? na - nb : nb - na;
+        }
+        return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      }).map(function(row, i) {
         row.Rank = String(i + 1);
+        return row;
       });
-      return sorted;
+    }
+
+    function renderReportButtons() {
+      document.getElementById("reportLinks").innerHTML = REPORT_PDFS.map(function(t) {
+        const row = rowByTicker(t);
+        const rtg = row ? row.Rating : "";
+        const rtgHtml = rtg ? "<span class=\"rtg " + rtgBtnClass(rtg) + "\">" + rtg.toUpperCase() + "</span>" : "";
+        return "<a class=\"report-btn\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">"
+          + t + rtgHtml + "<span class=\"sub\">PDF Report</span></a>";
+      }).join("");
     }
 
     function renderTable(rows) {
-      const data = prepareRows(rows);
+      allRows = sortRows(rows);
       const thead = document.querySelector("#summaryTable thead");
       const tbody = document.querySelector("#summaryTable tbody");
-      const labels = {
-        Rank: "#", Ticker: "Ticker", Company: "Company", Sector: "Sector",
-        Market_Cap: "Market Cap", Price: "Price", Target_Price: "Target",
-        Upside_Pct: "Upside", Rating: "Rating"
-      };
+
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
-        return "<th>" + (labels[c] || c.replace(/_/g, " ")) + "</th>";
+        const arrow = sortCol === c ? (sortAsc ? " ^" : " v") : "";
+        return "<th data-col=\"" + c + "\">" + (LABELS[c] || c) + arrow + "</th>";
       }).join("") + "<th>PDF</th></tr>";
 
-      tbody.innerHTML = data.map(function(row) {
+      thead.querySelectorAll("th[data-col]").forEach(function(th) {
+        th.onclick = function() {
+          const c = th.getAttribute("data-col");
+          if (sortCol === c) sortAsc = !sortAsc;
+          else { sortCol = c; sortAsc = c === "Ticker" || c === "Company" || c === "Sector"; }
+          renderTable(allRows);
+          applySearch();
+        };
+      });
+
+      tbody.innerHTML = allRows.map(function(row) {
         const t = row.Ticker || "";
         const hasPdf = REPORT_PDFS.indexOf(t) >= 0;
         const cells = COLS.map(function(c) {
           const v = row[c];
           if (c === "Market_Cap") return "<td class=\"num\">" + fmtMktCap(v) + "</td>";
-          if (c === "Price" || c === "Target_Price") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
+          if (c === "Price" || c === "Target_Price" || c === "DCF_Fair_Value" || c === "Comps_Fair_Value") {
+            return "<td class=\"num\">" + fmtMoney(v) + "</td>";
+          }
           if (c === "Upside_Pct") return "<td>" + fmtPct(v) + "</td>";
           if (c === "Company") return "<td class=\"company\">" + (v || "") + "</td>";
           if (c === "Rating") return "<td>" + ratingBadge(v) + "</td>";
@@ -278,27 +428,43 @@
           return "<td>" + (v || "") + "</td>";
         }).join("");
         const pdfCell = hasPdf
-          ? "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">Open PDF</a>"
-          : "<span class=\"pdf-na\">�</span>";
-        return "<tr>" + cells + "<td>" + pdfCell + "</td></tr>";
+          ? "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Open PDF</a>"
+          : "<a class=\"pdf-sum\" href=\"reports/Top20_Summary.pdf\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Summary</a>";
+        const cls = hasPdf ? " class=\"clickable\"" : "";
+        const click = hasPdf ? " onclick=\"window.open('" + reportHref(t) + "','_blank')\"" : "";
+        return "<tr" + cls + click + ">" + cells + "<td>" + pdfCell + "</td></tr>";
       }).join("");
+
+      renderReportButtons();
     }
 
-    document.getElementById("reportLinks").innerHTML = REPORT_PDFS.map(function(t) {
-      return "<a class=\"report-btn\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">"
-        + t + "<span class=\"sub\">PDF Report</span></a>";
-    }).join("");
+    function applySearch() {
+      const q = (document.getElementById("searchBox").value || "").toLowerCase().trim();
+      document.querySelectorAll("#summaryTable tbody tr").forEach(function(tr) {
+        tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+      });
+    }
+
+    function setDataAsOf() {
+      const d = window.DATA_AS_OF || new Date().toISOString().slice(0, 10);
+      document.getElementById("dataAsOfLine").textContent =
+        "Data as of " + d + " · Refreshed weekly · Top 20 US mega-caps";
+      return d;
+    }
 
     async function loadSummary() {
       const status = document.getElementById("statusPill");
       const hint = document.getElementById("hintText");
       status.textContent = "Loading...";
       hint.textContent = "";
+      sortCol = "Market_Cap";
+      sortAsc = false;
 
       if (window.SUMMARY_ROWS && window.SUMMARY_ROWS.length) {
         renderTable(window.SUMMARY_ROWS);
+        const d = setDataAsOf();
         document.getElementById("asOfText").textContent =
-          "Sorted by market cap (high to low) � " + window.SUMMARY_ROWS.length + " companies.";
+          "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }
@@ -316,8 +482,9 @@
           return o;
         });
         renderTable(rows);
+        setDataAsOf();
         document.getElementById("asOfText").textContent =
-          "Sorted by market cap (high to low) � " + rows.length + " companies.";
+          "Sorted by market cap · " + rows.length + " companies";
         status.textContent = "OK (" + rows.length + ")";
       } catch (e) {
         status.textContent = "Failed";
@@ -326,6 +493,7 @@
       }
     }
 
+    document.getElementById("searchBox").oninput = applySearch;
     document.getElementById("reloadBtn").onclick = function() {
       loadSummary().catch(function(e) { console.error(e); });
     };

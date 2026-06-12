@@ -26,8 +26,8 @@ No extra code needed after enabling in Vercel.
 
 ## What you can track
 
-- **Page views** — how many times the homepage loaded
-- **Unique visitors** — approximate distinct users (Vercel / GA)
-- **PDF clicks** — need event tracking (e.g. `va('event', { name: 'pdf_click', ticker: 'NVDA' })`) or link URLs in analytics
+- **Page views** ï¿½ how many times the homepage loaded
+- **Unique visitors** ï¿½ approximate distinct users (Vercel / GA)
+- **PDF clicks** ï¿½ need event tracking (e.g. `va('event', { name: 'pdf_click', ticker: 'NVDA' })`) or link URLs in analytics
 
 For a portfolio site, **Vercel Web Analytics page views** is usually enough.
