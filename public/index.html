@@ -8,181 +8,167 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://public-reports-one.vercel.app/" />
   <meta property="og:title" content="Darren Ye - Equity Research Automated Dashboard" />
-  <meta property="og:description" content="Top 20 US mega-cap summary with DCF, comps, and analyst cross-check. Download sell-side-style PDF reports." />
+  <meta property="og:description" content="Top 20 US mega-cap summary with DCF, comps, and analyst cross-check." />
   <meta property="og:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
-  <meta property="og:image:secure_url" content="https://public-reports-one.vercel.app/social-card.jpg" />
-  <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="627" />
-  <link rel="image_src" href="https://public-reports-one.vercel.app/social-card.jpg" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet" />
   <style>
     :root{
-      --bg:#0b1220; --card:#111b2e; --muted:#a9b4c7; --text:#e9eef7;
-      --accent:#60a5fa; --good:#34d399; --bad:#fb7185; --warn:#fbbf24;
-      --border:rgba(255,255,255,.08);
+      --bg:#fafaf8; --card:#ffffff; --text:#1c1917; --muted:#57534e;
+      --accent:#1e3a5f; --link:#1d4ed8; --border:#e7e5e4;
+      --good:#15803d; --bad:#b91c1c; --warn:#a16207;
+      --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      --text-base:15px; --text-sm:13px; --text-xs:12px;
     }
     *{box-sizing:border-box}
     html{scroll-behavior:smooth}
     body{
-      margin:0;
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-      background:radial-gradient(1200px 800px at 20% 0%,rgba(96,165,250,.22),transparent 60%),
-                  radial-gradient(900px 700px at 90% 10%,rgba(52,211,153,.14),transparent 55%),
-                  var(--bg);
-      color:var(--text); line-height:1.45;
+      margin:0;font-family:var(--sans);font-size:var(--text-base);line-height:1.65;
+      background:var(--bg);color:var(--text);
     }
-    a{color:var(--accent);text-decoration:none}
+    a{color:var(--link);text-decoration:none}
     a:hover{text-decoration:underline}
+    h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;color:var(--text);margin:0}
+    h1{font-size:clamp(2rem,4vw,2.75rem);letter-spacing:-.02em}
+    h2{font-size:1.35rem;margin-bottom:14px}
+    h3{font-size:1rem;margin-bottom:8px}
+    p{margin:0 0 12px}
     .nav{
-      position:sticky;top:0;z-index:20;
-      backdrop-filter:blur(12px);background:rgba(11,18,32,.88);
-      border-bottom:1px solid var(--border);
+      position:sticky;top:0;z-index:20;background:rgba(250,250,248,.92);
+      backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
     }
     .nav-inner{
-      max-width:1180px;margin:0 auto;padding:10px 18px;
-      display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+      max-width:920px;margin:0 auto;padding:12px 20px;
+      display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
     }
-    .nav-brand{font-weight:700;font-size:14px;color:var(--text)}
-    .nav-links{display:flex;gap:6px;flex-wrap:wrap}
+    .nav-brand{font-family:var(--serif);font-size:var(--text-sm);font-weight:600}
+    .nav-links{display:flex;gap:4px;flex-wrap:wrap}
     .nav-links a{
-      padding:6px 12px;border-radius:999px;font-size:12px;color:var(--muted);
-      border:1px solid transparent;
+      padding:6px 11px;border-radius:6px;font-size:var(--text-xs);
+      color:var(--muted);font-weight:500;
     }
-    .nav-links a:hover{color:var(--text);border-color:var(--border);text-decoration:none;background:rgba(255,255,255,.04)}
-    .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 48px}
+    .nav-links a:hover{color:var(--text);background:#f5f5f4;text-decoration:none}
+    .wrap{max-width:920px;margin:0 auto;padding:36px 20px 56px}
+    .eyebrow{
+      font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--accent);margin-bottom:12px;
+    }
+    .lead{font-size:var(--text-base);color:var(--muted);max-width:62ch}
+    .meta{font-size:var(--text-xs);color:var(--muted);margin-top:10px}
     .hero{
-      display:flex;gap:20px;align-items:flex-start;justify-content:space-between;
-      padding:22px;border:1px solid var(--border);border-radius:18px;
-      background:linear-gradient(180deg,rgba(17,27,46,.92),rgba(17,27,46,.55));
+      display:grid;grid-template-columns:1fr auto;gap:32px;align-items:start;
+      padding-bottom:36px;border-bottom:1px solid var(--border);margin-bottom:36px;
     }
-    .hero h1{margin:0 0 6px;font-size:28px}
-    .hero-tag{color:var(--accent);font-size:13px;font-weight:600;margin:0 0 10px}
-    .hero p{margin:0;color:var(--muted);max-width:52ch}
-    .pill{
-      display:inline-flex;padding:6px 10px;border:1px solid var(--border);
-      border-radius:999px;color:var(--muted);font-size:11px;
-      background:rgba(255,255,255,.03);margin:8px 6px 0 0;
+    @media(max-width:720px){.hero{grid-template-columns:1fr}}
+    .hero-role{font-size:var(--text-sm);color:var(--muted);margin:6px 0 14px}
+    .contact{text-align:right;font-size:var(--text-sm)}
+    @media(max-width:720px){.contact{text-align:left}}
+    .contact-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;justify-content:flex-end}
+    @media(max-width:720px){.btn-row{justify-content:flex-start}}
+    .btn{
+      display:inline-flex;align-items:center;padding:8px 14px;border-radius:8px;
+      font-size:var(--text-xs);font-weight:500;cursor:pointer;border:1px solid var(--border);
+      background:var(--card);color:var(--text);text-decoration:none;
     }
+    .btn:hover{text-decoration:none;background:#f5f5f4}
+    .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .btn-primary:hover{background:#152a45;color:#fff}
+    .section{margin-bottom:40px}
     .card{
-      padding:18px;border:1px solid var(--border);border-radius:18px;
-      background:rgba(17,27,46,.72);margin-top:16px;
+      background:var(--card);border:1px solid var(--border);border-radius:12px;
+      padding:24px;margin-top:16px;
     }
-    .card h2{margin:0 0 12px;font-size:17px}
-    .card h3{margin:0 0 8px;font-size:14px;color:#dbe7ff}
-    .muted{color:var(--muted)}
-    .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
-    @media(max-width:700px){.kpi-row{grid-template-columns:1fr}}
+    .card p,.card li{font-size:var(--text-sm);color:var(--muted)}
+    .card p:last-child{margin-bottom:0}
+    .inspiration{
+      border-left:3px solid var(--accent);padding-left:20px;margin:20px 0;
+    }
+    .inspiration p{font-size:var(--text-base);color:var(--text);line-height:1.7}
+    .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+    .pill{
+      font-size:11px;padding:5px 10px;border-radius:999px;
+      border:1px solid var(--border);background:#f5f5f4;color:var(--muted);font-weight:500;
+    }
+    .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+    @media(max-width:600px){.kpi-row{grid-template-columns:1fr}}
     .kpi{
-      padding:14px;border:1px solid var(--border);border-radius:14px;
-      background:rgba(255,255,255,.03);text-align:center;
+      padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--card);
     }
-    .kpi-n{font-size:26px;font-weight:800;color:var(--accent)}
-    .kpi-l{font-size:11px;color:var(--muted);margin-top:4px}
-    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
-    @media(max-width:800px){.steps{grid-template-columns:1fr}}
-    .step{
-      padding:12px;border:1px solid var(--border);border-radius:12px;
-      background:rgba(255,255,255,.02);font-size:12px;color:var(--muted);
-    }
-    .step b{display:block;color:var(--text);font-size:13px;margin-bottom:4px}
-    .step-num{color:var(--accent);font-weight:800;margin-right:4px}
-    .dl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    @media(max-width:500px){.dl-row{grid-template-columns:1fr}}
+    .kpi-n{font-family:var(--serif);font-size:1.75rem;font-weight:700;color:var(--accent);line-height:1}
+    .kpi-l{font-size:var(--text-xs);color:var(--muted);margin-top:6px}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+    @media(max-width:760px){.steps{grid-template-columns:1fr}}
+    .step{padding:14px;border:1px solid var(--border);border-radius:10px;background:#fafaf9}
+    .step-title{font-size:var(--text-sm);font-weight:600;color:var(--text);margin-bottom:4px}
+    .step p{font-size:var(--text-xs);margin:0}
+    .dl-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
     .dl-btn{
-      display:flex;align-items:center;justify-content:center;gap:8px;
-      padding:14px;border-radius:14px;border:1px solid rgba(52,211,153,.35);
-      background:linear-gradient(180deg,rgba(52,211,153,.12),rgba(17,27,46,.85));
-      color:var(--text);font-weight:650;font-size:13px;text-decoration:none;
-      transition:transform .15s,border-color .15s;
+      padding:10px 18px;border-radius:8px;font-size:var(--text-sm);font-weight:500;
+      background:var(--accent);color:#fff;text-decoration:none;
     }
-    .dl-btn:hover{text-decoration:none;transform:translateY(-1px);border-color:var(--good)}
-    .dl-btn.alt{border-color:rgba(96,165,250,.35);background:linear-gradient(180deg,rgba(96,165,250,.12),rgba(17,27,46,.85))}
-    .dl-btn.alt:hover{border-color:var(--accent)}
-    .report-grid{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
-      gap:10px;margin-top:12px;
-    }
+    .dl-btn:hover{text-decoration:none;background:#152a45}
+    .dl-btn.outline{background:var(--card);color:var(--text);border:1px solid var(--border)}
+    .dl-btn.outline:hover{background:#f5f5f4}
+    .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:14px}
     .report-btn{
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      min-height:72px;padding:10px 8px;border-radius:14px;
-      border:1px solid rgba(96,165,250,.4);
-      background:linear-gradient(180deg,rgba(96,165,250,.14),rgba(17,27,46,.85));
-      color:var(--text);text-decoration:none;font-weight:800;font-size:15px;
-      transition:transform .15s,border-color .15s,box-shadow .15s;
-      box-shadow:0 2px 8px rgba(0,0,0,.2);
+      min-height:68px;padding:10px;border-radius:10px;border:1px solid var(--border);
+      background:var(--card);color:var(--text);text-decoration:none;font-weight:600;font-size:var(--text-sm);
+      transition:box-shadow .15s,border-color .15s;
     }
-    .report-btn:hover{
-      text-decoration:none;transform:translateY(-2px);
-      border-color:var(--accent);box-shadow:0 6px 16px rgba(96,165,250,.2);
-    }
-    .report-btn .sub{font-size:10px;color:var(--muted);font-weight:500;margin-top:4px}
-    .report-btn .rtg{font-size:10px;font-weight:700;margin-top:3px;padding:2px 6px;border-radius:999px}
-    .rtg-good{color:var(--good);background:rgba(52,211,153,.12)}
-    .rtg-bad{color:var(--bad);background:rgba(251,113,133,.12)}
-    .rtg-warn{color:var(--warn);background:rgba(251,191,36,.12)}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-    .btn{
-      display:inline-flex;align-items:center;padding:8px 12px;border-radius:10px;
-      border:1px solid var(--border);background:rgba(255,255,255,.03);
-      color:var(--text);cursor:pointer;font-size:13px;
-    }
-    .btn:hover{background:rgba(255,255,255,.06)}
+    .report-btn:hover{text-decoration:none;border-color:#a8a29e;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    .report-btn .sub{font-size:10px;color:var(--muted);font-weight:400;margin-top:4px}
+    .report-btn .rtg{font-size:10px;font-weight:600;margin-top:3px}
+    .rtg-good{color:var(--good)} .rtg-bad{color:var(--bad)} .rtg-warn{color:var(--warn)}
+    .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .toolbar h2{margin:0}
     .search{
-      padding:8px 12px;border-radius:10px;border:1px solid var(--border);
-      background:rgba(0,0,0,.2);color:var(--text);font-size:13px;min-width:180px;
+      padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+      background:var(--card);font-size:var(--text-sm);min-width:200px;
     }
-    .search::placeholder{color:var(--muted)}
-    .table-wrap{
-      overflow:auto;margin-top:12px;max-height:68vh;
-      border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);
-    }
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:9px 11px;border-bottom:1px solid var(--border);font-size:11.5px;white-space:nowrap}
+    .status{font-size:var(--text-xs);color:var(--muted);padding:5px 10px;border:1px solid var(--border);border-radius:999px}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;max-height:65vh}
+    table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--card)}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
     th{
-      text-align:left;color:#dbe7ff;background:rgba(17,27,46,.97);
-      position:sticky;top:0;z-index:1;cursor:pointer;user-select:none;
+      background:#f5f5f4;color:var(--muted);font-weight:600;font-size:11px;
+      text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;cursor:pointer;
     }
-    th:hover{color:var(--accent)}
+    th:hover{color:var(--text)}
     tr:last-child td{border-bottom:none}
     tr.clickable{cursor:pointer}
-    tr.clickable:hover td{background:rgba(96,165,250,.08)}
-    tr:hover td{background:rgba(255,255,255,.02)}
-    td.company{max-width:160px;overflow:hidden;text-overflow:ellipsis}
+    tr.clickable:hover td{background:#fafaf9}
+    tr:hover td{background:#fafaf9}
+    td.company{max-width:150px;overflow:hidden;text-overflow:ellipsis}
     td.num{font-variant-numeric:tabular-nums}
     .up-good{color:var(--good)} .up-bad{color:var(--bad)} .up-warn{color:var(--warn)}
-    .badge{
-      padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;
-      border:1px solid transparent;display:inline-block;
-    }
-    .b-good{color:var(--good);background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
-    .b-bad{color:var(--bad);background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.35)}
-    .b-warn{color:var(--warn);background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.35)}
-    .pdf-link{
-      display:inline-flex;padding:4px 9px;border-radius:8px;font-size:10px;
-      border:1px solid var(--border);background:rgba(96,165,250,.12);
-    }
-    .pdf-link:hover{text-decoration:none;background:rgba(96,165,250,.22)}
-    .pdf-sum{font-size:10px;color:var(--muted)}
-    .pdf-sum:hover{color:var(--accent);text-decoration:none}
-    details.exp{margin:10px 0;border:1px solid var(--border);border-radius:12px;padding:0 12px;background:rgba(255,255,255,.02)}
-    details.exp summary{
-      cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:#dbe7ff;list-style:none;
-    }
-    details.exp summary::-webkit-details-marker{display:none}
-    details.exp ul{margin:0 0 12px 18px;padding:0;color:var(--muted);font-size:12px}
-    details.exp li{margin:5px 0}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    @media(max-width:900px){.grid-2{grid-template-columns:1fr}.hero{flex-direction:column}}
-    .foot{margin-top:14px;color:var(--muted);font-size:11px}
+    .badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;display:inline-block}
+    .b-good{color:var(--good);background:#dcfce7}
+    .b-bad{color:var(--bad);background:#fee2e2}
+    .b-warn{color:var(--warn);background:#fef3c7}
+    .pdf-link{font-size:11px;font-weight:500;color:var(--link)}
+    .pdf-sum{font-size:11px;color:var(--muted)}
+    .exp-item{padding:16px 0;border-bottom:1px solid var(--border)}
+    .exp-item:last-child{border-bottom:none;padding-bottom:0}
+    .exp-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;margin-bottom:6px}
+    .exp-title{font-size:var(--text-sm);font-weight:600;color:var(--text)}
+    .exp-date{font-size:var(--text-xs);color:var(--muted)}
+    .exp-item ul{margin:6px 0 0 18px;padding:0}
+    .exp-item li{font-size:var(--text-sm);color:var(--muted);margin:4px 0}
+    .edu-item{margin-bottom:12px}
+    .edu-degree{font-size:var(--text-sm);font-weight:600;color:var(--text)}
+    .edu-school{font-size:var(--text-sm);color:var(--muted)}
+    .grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:32px}
+    @media(max-width:800px){.grid-2{grid-template-columns:1fr}}
+    .foot{font-size:var(--text-xs);color:var(--muted);margin-top:12px}
     .site-foot{
-      text-align:center;padding:16px;border-top:1px solid var(--border);
-      color:var(--muted);font-size:11px;background:rgba(0,0,0,.25);
+      text-align:center;padding:20px;font-size:var(--text-xs);color:var(--muted);
+      border-top:1px solid var(--border);background:var(--card);
     }
-    .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    .hint{color:var(--warn);font-size:12px;margin-top:8px}
-    .meta-line{font-size:12px;color:var(--muted);margin-top:8px}
+    .hint{font-size:var(--text-xs);color:var(--warn);margin-top:8px}
   </style>
   <script src="summary-data.js"></script>
   <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
@@ -194,7 +180,8 @@
       <span class="nav-brand">Darren Ye</span>
       <div class="nav-links">
         <a href="#about">About</a>
-        <a href="#research">Research</a>
+        <a href="#project">Project</a>
+        <a href="#research">Dashboard</a>
         <a href="#top20">Top 20</a>
         <a href="#resume">Resume</a>
       </div>
@@ -202,62 +189,94 @@
   </nav>
 
   <div class="wrap">
-    <section class="hero" id="about">
+    <header class="hero" id="about">
       <div>
+        <p class="eyebrow">Portfolio · Financial Analytics</p>
         <h1>Darren Ye</h1>
-        <p class="hero-tag">Equity Research &amp; Financial Analytics</p>
-        <p>
-          Built an automated equity research pipeline: Yahoo Finance data &rarr; DCF + comps + analyst blend
-          &rarr; sell-side-style PDFs and this live dashboard. MSF &amp; MMA (Expected Aug 2026).
+        <p class="hero-role">MSF &amp; MMA (Expected Aug 2026) · Toronto / Waterloo, ON</p>
+        <p class="lead">
+          Data and financial analyst with experience across Amazon, TCL, and Guangfa Bank.
+          Focused on forecasting, valuation, and building tools that turn market data into decisions.
         </p>
-        <p class="meta-line" id="dataAsOfLine">Data refresh: loading...</p>
-        <span class="pill">Python</span><span class="pill">yfinance</span><span class="pill">ReportLab</span>
-        <span class="pill">SQL</span><span class="pill">Power BI</span><span class="pill">Vercel</span>
+        <div class="pill-row">
+          <span class="pill">Python</span><span class="pill">SQL</span>
+          <span class="pill">Power BI</span><span class="pill">Financial Modeling</span>
+        </div>
       </div>
-      <div style="min-width:240px;text-align:right">
-        <div class="muted" style="font-size:12px">Contact</div>
-        <div style="margin-top:6px">
-          <a href="mailto:Yexx3190@mylaurier.ca">Yexx3190@mylaurier.ca</a><br/>
-          <span class="muted">Toronto / Waterloo, ON</span>
-        </div>
-        <div class="links" style="justify-content:flex-end">
+      <div class="contact">
+        <div class="contact-label">Contact</div>
+        <a href="mailto:Yexx3190@mylaurier.ca">Yexx3190@mylaurier.ca</a>
+        <div class="btn-row">
           <a class="btn" href="https://www.linkedin.com/in/darrenye11" target="_blank" rel="noreferrer">LinkedIn</a>
-          <a class="btn" href="https://github.com/darren-ye/public-reports" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="btn btn-primary" href="https://github.com/darren-ye/public-reports" target="_blank" rel="noreferrer">GitHub</a>
         </div>
+      </div>
+    </header>
+
+    <section class="section" id="project">
+      <p class="eyebrow">Featured Project</p>
+      <h2>Automated Equity Research Pipeline</h2>
+      <div class="inspiration">
+        <p>
+          <strong>Inspiration.</strong> I built this project to automate financial data collection and
+          valuation modeling — strengthening my ability to process raw market data, design repeatable
+          models, and deliver institutional-style outputs without manual spreadsheet work.
+        </p>
+      </div>
+      <p class="lead">
+        The system pulls live data from Yahoo Finance, runs a blended valuation (Simon FCFE DCF,
+        comparable multiples, and analyst consensus), filters outliers, and publishes sell-side-style
+        PDF reports plus this interactive dashboard — synced weekly via GitHub and Vercel.
+      </p>
+      <p class="meta" id="dataAsOfLine">Data refresh: loading...</p>
+      <div class="pill-row">
+        <span class="pill">yfinance</span><span class="pill">ReportLab</span>
+        <span class="pill">openpyxl</span><span class="pill">GitHub Actions</span>
+        <span class="pill">Vercel</span>
       </div>
     </section>
 
-    <section class="card" id="research">
-      <h2>Equity Research Project</h2>
-      <p class="muted" style="margin:0 0 4px">
-        Top 20 US mega-caps by market cap. Refreshed on a weekly schedule with stale-data detection.
-        Educational demo only — not investment advice.
+    <section class="section" id="research">
+      <p class="eyebrow">Live Dashboard</p>
+      <h2>Equity Research Outputs</h2>
+      <p class="lead" style="margin-bottom:0">
+        Top 20 US mega-caps by market cap. Educational demo only — not investment advice.
       </p>
       <div class="kpi-row">
-        <div class="kpi"><div class="kpi-n">20</div><div class="kpi-l">Mega-caps tracked</div></div>
-        <div class="kpi"><div class="kpi-n">7</div><div class="kpi-l">Deep-dive PDF reports</div></div>
-        <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Valuation methods blended</div></div>
+        <div class="kpi"><div class="kpi-n">20</div><div class="kpi-l">Companies tracked</div></div>
+        <div class="kpi"><div class="kpi-n" id="kpiPdfCount">20</div><div class="kpi-l">Deep-dive PDF reports</div></div>
+        <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Valuation methods</div></div>
       </div>
       <div class="steps">
-        <div class="step"><b><span class="step-num">1.</span> Fetch</b>Yahoo Finance prices, fundamentals, and analyst targets.</div>
-        <div class="step"><b><span class="step-num">2.</span> Value</b>Simon FCFE DCF, peer multiples, and consensus cross-check with outlier filter.</div>
-        <div class="step"><b><span class="step-num">3.</span> Publish</b>Auto-generate PDF reports and sync this dashboard via GitHub &amp; Vercel.</div>
+        <div class="step">
+          <div class="step-title">1 · Collect</div>
+          <p>Prices, fundamentals, peer multiples, and analyst targets from Yahoo Finance.</p>
+        </div>
+        <div class="step">
+          <div class="step-title">2 · Model</div>
+          <p>Simon FCFE DCF, comps (P/E, EV/EBITDA, P/S), and consensus cross-check with outlier filter.</p>
+        </div>
+        <div class="step">
+          <div class="step-title">3 · Publish</div>
+          <p>Auto-generate 2-page PDF reports, Excel valuation workbooks, and sync this site.</p>
+        </div>
       </div>
       <div class="dl-row">
         <a class="dl-btn" href="reports/Top20_Summary.pdf" target="_blank" rel="noreferrer">Top 20 Summary PDF</a>
-        <a class="dl-btn alt" href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">Download CSV Data</a>
+        <a class="dl-btn outline" href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">Download CSV</a>
+        <a class="dl-btn outline" href="#top20">View table</a>
       </div>
-      <h3 style="margin-top:18px">Stock reports — click to open PDF</h3>
+      <h3 style="margin-top:24px">Stock reports</h3>
       <div id="reportLinks" class="report-grid"></div>
     </section>
 
-    <section class="card" id="top20">
+    <section class="section card" id="top20">
       <div class="toolbar">
-        <h2 style="margin:0">Top 20 by Market Cap</h2>
+        <h2>Top 20 by Market Cap</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input class="search" id="searchBox" type="search" placeholder="Search ticker or company..." />
           <button class="btn" id="reloadBtn" type="button">Reload</button>
-          <span class="pill" id="statusPill">Loading...</span>
+          <span class="status" id="statusPill">Loading...</span>
         </div>
       </div>
       <div class="table-wrap">
@@ -267,34 +286,74 @@
       <p class="hint" id="hintText"></p>
     </section>
 
-    <section class="card" id="resume">
-      <div class="grid-2">
+    <section class="section" id="resume">
+      <p class="eyebrow">Background</p>
+      <h2>Experience &amp; Education</h2>
+      <div class="grid-2" style="margin-top:20px">
         <div>
-          <h2>Experience</h2>
-          <details class="exp" open>
-            <summary>Research Assistant — Laurier (Feb 2026 – Present)</summary>
-            <ul><li>Python/SQL job-posting pipelines; skill taxonomy and gap analysis vs MMA curriculum.</li></ul>
-          </details>
-          <details class="exp">
-            <summary>Senior Financial Analyst — TCL (Mar 2022 – Apr 2023)</summary>
-            <ul><li>Python/SQL pricing and P&amp;L models; Power BI dashboards; ROI sensitivity analysis.</li></ul>
-          </details>
-          <details class="exp">
-            <summary>Financial Analyst — Guangfa Bank (May 2019 – Mar 2022)</summary>
-            <ul><li>SQL credit-card database; forecasting; 150+ project ROI audits.</li></ul>
-          </details>
-          <details class="exp">
-            <summary>Financial Analyst Co-op — Amazon Robotics (2015)</summary>
-            <ul><li>ROI models for capex; revenue forecasting for robotics warehousing.</li></ul>
-          </details>
+          <h3>Experience</h3>
+          <div class="exp-item">
+            <div class="exp-head">
+              <span class="exp-title">Research Assistant — Wilfrid Laurier University</span>
+              <span class="exp-date">Feb 2026 – Present</span>
+            </div>
+            <ul>
+              <li>Built Python/SQL pipelines to scrape and structure job-posting data for labor-market research.</li>
+              <li>Mapped skill requirements to MMA curriculum; produced gap analysis for program planning.</li>
+            </ul>
+          </div>
+          <div class="exp-item">
+            <div class="exp-head">
+              <span class="exp-title">Senior Financial Analyst — TCL Technology</span>
+              <span class="exp-date">Mar 2022 – Apr 2023</span>
+            </div>
+            <ul>
+              <li>Developed Python/SQL pricing and P&amp;L models for consumer electronics product lines.</li>
+              <li>Built Power BI dashboards for monthly business review; ran ROI and sensitivity analysis on promotions.</li>
+            </ul>
+          </div>
+          <div class="exp-item">
+            <div class="exp-head">
+              <span class="exp-title">Financial Analyst — China Guangfa Bank</span>
+              <span class="exp-date">May 2019 – Mar 2022</span>
+            </div>
+            <ul>
+              <li>Managed SQL-based credit-card portfolio database; supported risk and profitability reporting.</li>
+              <li>Led forecasting and scenario analysis; audited 150+ project ROI submissions for retail banking.</li>
+            </ul>
+          </div>
+          <div class="exp-item">
+            <div class="exp-head">
+              <span class="exp-title">Financial Analyst Co-op — Amazon Robotics</span>
+              <span class="exp-date">2015</span>
+            </div>
+            <ul>
+              <li>Built capex ROI models for warehouse automation investments.</li>
+              <li>Supported revenue forecasting and cost allocation for robotics fulfillment operations.</li>
+            </ul>
+          </div>
         </div>
         <div>
-          <h2>Education</h2>
-          <ul class="muted" style="margin:0 0 0 18px;font-size:13px">
-            <li><b style="color:var(--text)">MMA</b> — Wilfrid Laurier University (Expected Aug 2026)</li>
-            <li><b style="color:var(--text)">MSF</b> — University of Rochester (2019)</li>
-            <li><b style="color:var(--text)">B.S. Finance &amp; Accounting</b> — Northeastern University (2016)</li>
-          </ul>
+          <h3>Education</h3>
+          <div class="edu-item">
+            <div class="edu-degree">Master of Management Analytics (MMA)</div>
+            <div class="edu-school">Wilfrid Laurier University · Expected Aug 2026</div>
+          </div>
+          <div class="edu-item">
+            <div class="edu-degree">Master of Science in Finance (MSF)</div>
+            <div class="edu-school">University of Rochester · 2019</div>
+          </div>
+          <div class="edu-item">
+            <div class="edu-degree">B.S. Finance &amp; Accounting</div>
+            <div class="edu-school">Northeastern University · 2016</div>
+          </div>
+          <div class="card" style="margin-top:20px;padding:16px">
+            <h3 style="margin-bottom:8px">Core skills</h3>
+            <p style="margin:0">
+              Valuation (DCF, comps), financial modeling, SQL/Python analytics, Power BI,
+              data pipeline design, and automated reporting.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -305,45 +364,37 @@
   </footer>
 
   <script>
-    const REPORT_PDFS = ["NVDA","GOOGL","AAPL","MSFT","AMZN","TSLA","BX"];
     const COLS = ["Rank","Ticker","Company","Sector","Market_Cap","Price","DCF_Fair_Value","Comps_Fair_Value","Target_Price","Upside_Pct","Rating"];
     const LABELS = {
       Rank:"#", Ticker:"Ticker", Company:"Company", Sector:"Sector",
       Market_Cap:"Mkt Cap", Price:"Price", DCF_Fair_Value:"DCF",
       Comps_Fair_Value:"Comps", Target_Price:"Target", Upside_Pct:"Upside", Rating:"Rating"
     };
-    let allRows = [];
-    let sortCol = "Market_Cap";
-    let sortAsc = false;
+    let allRows = [], sortCol = "Market_Cap", sortAsc = false;
 
-    function reportHref(ticker) {
-      const rel = "reports/" + ticker + "_research.pdf";
+    function reportHref(t) {
+      const rel = "reports/" + t + "_research.pdf";
       return location.protocol === "file:" ? rel : "/" + rel;
     }
-
     function ratingClass(r) {
       const u = (r || "").toUpperCase();
       if (u === "BUY" || u === "OVERWEIGHT") return "b-good";
       if (u === "SELL" || u === "UNDERWEIGHT") return "b-bad";
       return "b-warn";
     }
-
     function ratingBadge(r) {
       return "<span class=\"badge " + ratingClass(r) + "\">" + ((r || "N/A").toUpperCase()) + "</span>";
     }
-
     function rtgBtnClass(r) {
       const u = (r || "").toUpperCase();
       if (u === "BUY" || u === "OVERWEIGHT") return "rtg-good";
       if (u === "SELL" || u === "UNDERWEIGHT") return "rtg-bad";
       return "rtg-warn";
     }
-
     function fmtMoney(n) {
       if (n === "" || n == null || isNaN(+n)) return "N/A";
       return "$" + (+n).toLocaleString(undefined, { maximumFractionDigits: 2 });
     }
-
     function fmtMktCap(n) {
       if (n === "" || n == null || isNaN(+n)) return "N/A";
       const x = +n;
@@ -351,140 +402,110 @@
       if (x >= 1e9) return "$" + (x / 1e9).toFixed(1) + "B";
       return "$" + (x / 1e6).toFixed(0) + "M";
     }
-
     function fmtPct(n) {
       if (n === "" || n == null || isNaN(+n)) return "N/A";
       const x = +n;
       const cls = x > 5 ? "up-good" : x < -5 ? "up-bad" : "up-warn";
       return "<span class=\"" + cls + " num\">" + (x > 0 ? "+" : "") + x.toFixed(1) + "%</span>";
     }
-
     function rowByTicker(t) {
       for (let i = 0; i < allRows.length; i++) {
         if ((allRows[i].Ticker || "").toUpperCase() === t.toUpperCase()) return allRows[i];
       }
       return null;
     }
-
     function sortRows(rows) {
-      const key = sortCol;
-      const asc = sortAsc;
+      const key = sortCol, asc = sortAsc;
       return rows.slice().sort(function(a, b) {
-        const va = a[key], vb = b[key];
-        const na = +va, nb = +vb;
-        if (!isNaN(na) && !isNaN(nb) && va !== "" && vb !== "") {
-          return asc ? na - nb : nb - na;
-        }
-        return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
-      }).map(function(row, i) {
-        row.Rank = String(i + 1);
-        return row;
-      });
+        const na = +a[key], nb = +b[key];
+        if (!isNaN(na) && !isNaN(nb) && a[key] !== "" && b[key] !== "") return asc ? na - nb : nb - na;
+        return asc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key]));
+      }).map(function(row, i) { row.Rank = String(i + 1); return row; });
+    }
+    function pdfTickers() {
+      return allRows.map(function(r) { return r.Ticker; }).filter(Boolean);
     }
 
     function renderReportButtons() {
-      document.getElementById("reportLinks").innerHTML = REPORT_PDFS.map(function(t) {
-        const row = rowByTicker(t);
-        const rtg = row ? row.Rating : "";
+      const tickers = pdfTickers();
+      const kpi = document.getElementById("kpiPdfCount");
+      if (kpi) kpi.textContent = String(tickers.length);
+      document.getElementById("reportLinks").innerHTML = tickers.map(function(t) {
+        const row = rowByTicker(t), rtg = row ? row.Rating : "";
         const rtgHtml = rtg ? "<span class=\"rtg " + rtgBtnClass(rtg) + "\">" + rtg.toUpperCase() + "</span>" : "";
         return "<a class=\"report-btn\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">"
           + t + rtgHtml + "<span class=\"sub\">PDF Report</span></a>";
       }).join("");
     }
-
     function renderTable(rows) {
       allRows = sortRows(rows);
       const thead = document.querySelector("#summaryTable thead");
       const tbody = document.querySelector("#summaryTable tbody");
-
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
         const arrow = sortCol === c ? (sortAsc ? " ^" : " v") : "";
         return "<th data-col=\"" + c + "\">" + (LABELS[c] || c) + arrow + "</th>";
       }).join("") + "<th>PDF</th></tr>";
-
       thead.querySelectorAll("th[data-col]").forEach(function(th) {
         th.onclick = function() {
           const c = th.getAttribute("data-col");
           if (sortCol === c) sortAsc = !sortAsc;
           else { sortCol = c; sortAsc = c === "Ticker" || c === "Company" || c === "Sector"; }
-          renderTable(allRows);
-          applySearch();
+          renderTable(allRows); applySearch();
         };
       });
-
       tbody.innerHTML = allRows.map(function(row) {
-        const t = row.Ticker || "";
-        const hasPdf = REPORT_PDFS.indexOf(t) >= 0;
+        const t = row.Ticker || "", hasPdf = !!t;
         const cells = COLS.map(function(c) {
           const v = row[c];
           if (c === "Market_Cap") return "<td class=\"num\">" + fmtMktCap(v) + "</td>";
-          if (c === "Price" || c === "Target_Price" || c === "DCF_Fair_Value" || c === "Comps_Fair_Value") {
-            return "<td class=\"num\">" + fmtMoney(v) + "</td>";
-          }
+          if (c === "Price" || c === "Target_Price" || c === "DCF_Fair_Value" || c === "Comps_Fair_Value") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
           if (c === "Upside_Pct") return "<td>" + fmtPct(v) + "</td>";
           if (c === "Company") return "<td class=\"company\">" + (v || "") + "</td>";
           if (c === "Rating") return "<td>" + ratingBadge(v) + "</td>";
           if (c === "Rank") return "<td class=\"num\">" + (v || "") + "</td>";
           return "<td>" + (v || "") + "</td>";
         }).join("");
-        const pdfCell = hasPdf
-          ? "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Open PDF</a>"
-          : "<a class=\"pdf-sum\" href=\"reports/Top20_Summary.pdf\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Summary</a>";
-        const cls = hasPdf ? " class=\"clickable\"" : "";
-        const click = hasPdf ? " onclick=\"window.open('" + reportHref(t) + "','_blank')\"" : "";
-        return "<tr" + cls + click + ">" + cells + "<td>" + pdfCell + "</td></tr>";
+        const pdfCell = "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Open PDF</a>";
+        const click = " onclick=\"window.open('" + reportHref(t) + "','_blank')\"";
+        return "<tr class=\"clickable\"" + click + ">" + cells + "<td>" + pdfCell + "</td></tr>";
       }).join("");
-
       renderReportButtons();
     }
-
     function applySearch() {
       const q = (document.getElementById("searchBox").value || "").toLowerCase().trim();
       document.querySelectorAll("#summaryTable tbody tr").forEach(function(tr) {
         tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
       });
     }
-
     function setDataAsOf() {
       const d = window.DATA_AS_OF || new Date().toISOString().slice(0, 10);
       document.getElementById("dataAsOfLine").textContent =
         "Data as of " + d + " · Refreshed weekly · Top 20 US mega-caps";
       return d;
     }
-
     async function loadSummary() {
-      const status = document.getElementById("statusPill");
-      const hint = document.getElementById("hintText");
-      status.textContent = "Loading...";
-      hint.textContent = "";
-      sortCol = "Market_Cap";
-      sortAsc = false;
-
+      const status = document.getElementById("statusPill"), hint = document.getElementById("hintText");
+      status.textContent = "Loading..."; hint.textContent = "";
+      sortCol = "Market_Cap"; sortAsc = false;
       if (window.SUMMARY_ROWS && window.SUMMARY_ROWS.length) {
         renderTable(window.SUMMARY_ROWS);
         const d = setDataAsOf();
-        document.getElementById("asOfText").textContent =
-          "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
+        document.getElementById("asOfText").textContent = "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }
-
       try {
         const res = await fetch("reports/Top20_Summary.csv", { cache: "no-store" });
         if (!res.ok) throw new Error("CSV not found");
-        const text = await res.text();
-        const lines = text.trim().split(/\r?\n/);
+        const lines = (await res.text()).trim().split(/\r?\n/);
         const header = lines[0].split(",");
         const rows = lines.slice(1).map(function(line) {
-          const parts = line.split(",");
-          const o = {};
+          const parts = line.split(","), o = {};
           header.forEach(function(h, i) { o[h] = parts[i]; });
           return o;
         });
-        renderTable(rows);
-        setDataAsOf();
-        document.getElementById("asOfText").textContent =
-          "Sorted by market cap · " + rows.length + " companies";
+        renderTable(rows); setDataAsOf();
+        document.getElementById("asOfText").textContent = "Sorted by market cap · " + rows.length + " companies";
         status.textContent = "OK (" + rows.length + ")";
       } catch (e) {
         status.textContent = "Failed";
@@ -492,12 +513,9 @@
         throw e;
       }
     }
-
     document.getElementById("searchBox").oninput = applySearch;
-    document.getElementById("reloadBtn").onclick = function() {
-      loadSummary().catch(function(e) { console.error(e); });
-    };
-    loadSummary().catch(function(e) { console.error(e); });
+    document.getElementById("reloadBtn").onclick = function() { loadSummary().catch(console.error); };
+    loadSummary().catch(console.error);
   </script>
 </body>
 </html>

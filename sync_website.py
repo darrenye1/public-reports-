@@ -12,19 +12,14 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "reports"
 PUBLIC = ROOT / "public"
 DOCS = ROOT / "docs"
-PDF_TICKERS = ["NVDA", "GOOGL", "AAPL", "MSFT", "AMZN", "TSLA", "BX"]
-
-
 def _copy_reports(src_dir: Path, dst_dir: Path) -> None:
     dst_dir.mkdir(parents=True, exist_ok=True)
     for name in ("Top20_Summary.csv", "Top20_Summary.pdf"):
         s = src_dir / name
         if s.is_file():
             shutil.copy2(s, dst_dir / name)
-    for ticker in PDF_TICKERS:
-        s = src_dir / f"{ticker}_research.pdf"
-        if s.is_file():
-            shutil.copy2(s, dst_dir / s.name)
+    for pdf in sorted(src_dir.glob("*_research.pdf")):
+        shutil.copy2(pdf, dst_dir / pdf.name)
 
 
 def main() -> None:

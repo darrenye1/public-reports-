@@ -47,7 +47,7 @@ DEFAULT_TERMINAL_GROWTH = 0.025
 DEFAULT_PROJECTION_YEARS = 5
 DEFAULT_FCF_GROWTH = 0.08
 DEFAULT_OUTPUT_DIR = "reports"
-TOP_US_PDF_REPORT_COUNT = 5
+TOP_US_PDF_REPORT_COUNT = 20
 TOP_US_SUMMARY_COUNT = 20
 SUMMARY_REPORT_NAME = "Top20_Summary.pdf"
 
@@ -1915,7 +1915,7 @@ def run_batch_top20(
     wacc: float | None = None,
     replace_old: bool = True,
 ) -> list[ReportRow]:
-    """Top 5 PDFs + TSLA/BX extras + Top 20 summary table."""
+    """Top 20 PDFs + optional EXTRA_PDF_TICKERS + Top 20 summary table."""
     return run_batch(output_dir, wacc, replace_old, TOP_US_PDF_REPORT_COUNT, TOP_US_SUMMARY_COUNT)
 
 
@@ -3154,9 +3154,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("ticker", nargs="?", default=None, help="Single ticker (e.g., AAPL). Omit with --batch-top20.")
     parser.add_argument(
         "--batch-top20", action="store_true",
-        help="Batch: PDFs for top 5 + TSLA/BX + Top 20 summary table",
+        help="Batch: PDFs for top N mega-caps + extras + Top 20 summary table",
     )
-    parser.add_argument("--pdf-count", type=int, default=TOP_US_PDF_REPORT_COUNT, help="Number of PDF reports (default: 5)")
+    parser.add_argument("--pdf-count", type=int, default=TOP_US_PDF_REPORT_COUNT, help="Number of PDF reports (default: 20)")
     parser.add_argument("--summary-count", type=int, default=TOP_US_SUMMARY_COUNT, help="Summary universe size (default: 20)")
     parser.add_argument("--weekly", action="store_true", help="Only run on Mondays (for scheduled jobs)")
     parser.add_argument(

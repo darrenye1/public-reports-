@@ -1,6 +1,6 @@
 # Automated Equity Research Reports
 
-Institutional-style **English PDF** reports: top 5 US mega-caps + **TSLA** + **BX**, plus **Top 20 summary** (PDF + CSV).
+Institutional-style **English PDF** reports for **Top 20 US mega-caps** (+ optional **BX** extra), plus **Top 20 summary** (PDF + CSV).
 
 **Data source:** [Yahoo Finance](https://finance.yahoo.com/) via `yfinance` (not Google Finance). State is tracked in `reports/.data_state.json`.
 
