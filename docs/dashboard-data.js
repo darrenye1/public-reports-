@@ -1,5 +1,5 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:01:22Z",
+  "generated_at": "2026-06-12T21:06:56Z",
   "data_as_of": "2026-06-12",
   "news": [
     {
@@ -9,6 +9,14 @@ window.DASHBOARD_DATA = {
       "summary": "Investors were feeling a bit calmer as they bought the dip in tech stocks following Friday's brutal AI selloff. The Cboe Volatility Index, a widely followed fear gauge that trades under the ticker VIX, dropped about 2 points to 19.",
       "published": "2026-06-08T11:06:17+00:00",
       "published_display": "Jun 08, 2026"
+    },
+    {
+      "title": "Stocks See Downward Pressure Despite Hopes for a Near-term US-Iran Agreement",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/stocks-see-downward-pressure-despite-141042397.html",
+      "source": "Barchart",
+      "summary": "The S&P 500 Index ($SPX ) (SPY ) is down -0.31%, the Dow Jones Industrial Average ($DOWI ) (DIA ) is up +0.09%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) is down -0.53%. June E-mini S&P futures (ESM26 ) are down -0.15%, and June E-mini Nasdaq futures (NQM26...",
+      "published": "2026-06-12T14:10:42+00:00",
+      "published_display": "Jun 12, 2026"
     },
     {
       "title": "Market Fear Index Jumps as AI Worries Build",
@@ -32,14 +40,6 @@ window.DASHBOARD_DATA = {
       "source": "Barrons.com",
       "summary": "The stock market ended another turbulent week on a high note amid all the buzz of SpaceX’s initial public offering. The Dow Jones Industrial Average rose 353 points, or 0.7%. The S&P 500 gained 0.5%. The Nasdaq rose 0.",
       "published": "2026-06-12T20:02:29+00:00",
-      "published_display": "Jun 12, 2026"
-    },
-    {
-      "title": "SSR Mining Pullback Tests Gold Rate Sensitivity And Long Term Thesis",
-      "url": "https://finance.yahoo.com/markets/commodities/articles/ssr-mining-pullback-tests-gold-181155351.html",
-      "source": "Simply Wall St.",
-      "summary": "SSR Mining (TSX:SSRM) is under fresh pressure as gold and silver prices weaken following strong U.S. employment data. Expectations for further Federal Reserve interest rate hikes are weighing on precious metals, a key revenue driver for the company. The share price closed at CA$3",
-      "published": "2026-06-12T18:11:55+00:00",
       "published_display": "Jun 12, 2026"
     }
   ],

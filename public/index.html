@@ -262,8 +262,13 @@
     }
     .hint{font-size:var(--text-xs);color:var(--warn);margin-top:8px}
     ::selection{background:rgba(34,211,238,.25);color:#fff}
-    .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
-    @media(max-width:900px){.dash-grid{grid-template-columns:1fr}}
+    .dash-stack{display:flex;flex-direction:column;gap:24px;margin-top:28px;width:100%}
+    .news-panel{
+      width:100%;min-width:0;padding:20px 24px;
+      background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
+      box-shadow:0 0 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .news-panel h3,.spacex-panel h3{margin-bottom:6px}
     .index-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
     @media(max-width:900px){.index-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:480px){.index-grid{grid-template-columns:1fr}}
@@ -281,22 +286,39 @@
     .index-chg{font-family:var(--mono);font-size:11px;margin-top:2px}
     .index-chg.up{color:var(--good)} .index-chg.down{color:var(--bad)}
     .index-chart{width:100%;height:56px;display:block;position:relative;z-index:0}
-    .news-list{list-style:none;margin:14px 0 0;padding:0}
+    .news-list{
+      list-style:none;margin:14px 0 0;padding:0;
+      display:flex;flex-direction:column;gap:0;width:100%;min-width:0;
+    }
     .news-item{
-      padding:14px 0;border-bottom:1px solid var(--border-soft);
+      padding:16px 0;border-bottom:1px solid var(--border-soft);
+      min-width:0;width:100%;
     }
     .news-item:last-child{border-bottom:none;padding-bottom:0}
-    .news-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
-    .news-title{font-size:var(--text-sm);font-weight:600;line-height:1.45;margin-bottom:4px}
-    .news-title a{color:var(--text)}
+    .news-meta{
+      font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;
+      letter-spacing:.04em;white-space:normal;
+    }
+    .news-title{
+      font-size:var(--text-base);font-weight:600;line-height:1.5;margin-bottom:6px;
+      white-space:normal;word-break:normal;overflow-wrap:break-word;
+    }
+    .news-title a{color:var(--text);display:inline}
     .news-title a:hover{color:var(--accent)}
-    .news-sum{font-size:var(--text-xs);color:var(--muted);line-height:1.5}
+    .news-sum{
+      font-size:var(--text-sm);color:var(--muted);line-height:1.55;
+      white-space:normal;word-break:normal;overflow-wrap:break-word;
+      max-width:100%;
+    }
+    .spacex-panel{
+      width:100%;min-width:0;padding:24px;margin-top:0;
+    }
     .spacex-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;margin-top:16px}
     @media(max-width:800px){.spacex-grid{grid-template-columns:1fr}}
     .metric-table{width:100%;border-collapse:collapse;font-size:var(--text-xs)}
     .metric-table th,.metric-table td{padding:8px 10px;border-bottom:1px solid var(--border-soft);text-align:left}
     .metric-table th{font-family:var(--mono);color:var(--accent);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
-    .metric-table td.num{font-family:var(--mono);color:var(--text)}
+    .metric-table td.num{font-family:var(--mono);color:var(--text);white-space:normal;word-break:break-word}
     .spacex-note{font-size:var(--text-xs);color:var(--muted);margin-top:10px;line-height:1.5}
     .val-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
     @media(max-width:600px){.val-row{grid-template-columns:1fr}}
@@ -406,13 +428,13 @@
         <div id="indexCharts" class="index-grid"></div>
       </div>
 
-      <div class="dash-grid" style="margin-top:28px">
-        <div id="macro-news">
+      <div class="dash-stack">
+        <div id="macro-news" class="news-panel">
           <h3>Macro Headlines · Past 7 Days</h3>
           <p class="meta">US market &amp; macro stories filtered from Yahoo Finance (SPY, indices, VIX, rates).</p>
           <ul id="newsList" class="news-list"></ul>
         </div>
-        <div id="spacex" class="card" style="margin-top:0;padding:20px">
+        <div id="spacex" class="card spacex-panel">
           <p class="eyebrow" style="margin-bottom:8px">Private / Public Crossover</p>
           <h3 style="margin:0">SpaceX · SPCX</h3>
           <p class="meta" id="spacexMeta">Loading...</p>
