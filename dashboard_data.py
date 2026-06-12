@@ -103,7 +103,7 @@ def fetch_macro_news(limit: int = 5, max_age_days: int = 7) -> list[dict[str, st
             seen_titles.add(norm)
             scored.append((score, pub or datetime.min.replace(tzinfo=timezone.utc), parsed))
 
-    scored.sort(key=lambda x: (-x[0], -x[1].timestamp()))
+    scored.sort(key=lambda x: (-x[1].timestamp(), -x[0]))
     if len(scored) < limit:
         for ticker in NEWS_TICKERS:
             try:
@@ -125,7 +125,7 @@ def fetch_macro_news(limit: int = 5, max_age_days: int = 7) -> list[dict[str, st
                 if len(scored) >= limit * 3:
                     break
 
-    scored.sort(key=lambda x: (-x[0], -x[1].timestamp()))
+    scored.sort(key=lambda x: (-x[1].timestamp(), -x[0]))
     return [row[2] for row in scored[:limit]]
 
 

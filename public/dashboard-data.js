@@ -1,14 +1,30 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:18:09Z",
+  "generated_at": "2026-06-12T21:27:15Z",
   "data_as_of": "2026-06-12",
   "news": [
     {
-      "title": "Market Fear Index Slides as Investors Pile Back Into Tech Stocks",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-060826/card/market-fear-index-slides-as-investors-pile-back-into-tech-stocks-lMyiHu0LDahwtFCIDX6G?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "Investors were feeling a bit calmer as they bought the dip in tech stocks following Friday's brutal AI selloff. The Cboe Volatility Index, a widely followed fear gauge that trades under the ticker VIX, dropped about 2 points to 19.",
-      "published": "2026-06-08T11:06:17+00:00",
-      "published_display": "Jun 08, 2026"
+      "title": "The Fed Just Triggered a Sharp Tech-Sector Sell-Off: Here Is the 1 Dirt-Cheap Financial Disruptor I’m Buying Hand Over Fist",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/fed-just-triggered-sharp-tech-211258894.html",
+      "source": "24/7 Wall St.",
+      "summary": "I keep hitting the buy button on SoFi Technologies (NASDAQ:SOFI), and the Fed-driven tech sell-off this month has only made my finger heavier. The stock sits at $16.67, down 36.33% year to date, while the QQQ has gained 16.74% over the same window. That gap is the opportunity. Th",
+      "published": "2026-06-12T21:12:58+00:00",
+      "published_display": "Jun 12, 2026"
+    },
+    {
+      "title": "Stock Market Today: Dow Ends Higher On Iran Deal Hopes; SpaceX Rockets 19% In Debut",
+      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-sp500-nasdaq-iran-deal-spacex-ipo-spcx-stock/?src=A00220&yptr=yahoo",
+      "source": "Investor's Business Daily",
+      "summary": "Stock Market Today: The Dow Jones index rises Friday on U.S.-Iran peace deal hopes. SpaceX stock jumps on its debut.",
+      "published": "2026-06-12T21:06:20+00:00",
+      "published_display": "Jun 12, 2026"
+    },
+    {
+      "title": "Dow Jones Futures: Market Has Wild Week, 5 Stocks In Buy Areas; SpaceX's Next Test",
+      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-market-wild-week-5-stocks-buy-areas-spacex-next-test/?src=A00220&yptr=yahoo",
+      "source": "Investor's Business Daily",
+      "summary": "The stock market had a wild but winning week. Comfort Systems and Viavi lead stocks making bullish rebounds. The SpaceX IPO took off.",
+      "published": "2026-06-12T21:00:29+00:00",
+      "published_display": "Jun 12, 2026"
     },
     {
       "title": "Indexes Settle Higher as SpaceX Soars in Trading Debut",
@@ -19,28 +35,12 @@ window.DASHBOARD_DATA = {
       "published_display": "Jun 12, 2026"
     },
     {
-      "title": "Stocks See Downward Pressure Despite Hopes for a Near-term US-Iran Agreement",
-      "url": "https://finance.yahoo.com/markets/stocks/articles/stocks-see-downward-pressure-despite-141042397.html",
-      "source": "Barchart",
-      "summary": "The S&P 500 Index ($SPX ) (SPY ) is down -0.31%, the Dow Jones Industrial Average ($DOWI ) (DIA ) is up +0.09%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) is down -0.53%. June E-mini S&P futures (ESM26 ) are down -0.15%, and June E-mini Nasdaq futures (NQM26...",
-      "published": "2026-06-12T14:10:42+00:00",
+      "title": "Money Is Quietly Rotating Out of the AI Trade. These 3 Unexpected Stocks Just Hit All-Time Highs.",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/money-quietly-rotating-ai-trade-205100245.html",
+      "source": "Motley Fool",
+      "summary": "While the market's high-flying tech trade pulls back, a handful of familiar consumer names are quietly setting records that stretch back decades.",
+      "published": "2026-06-12T20:51:00+00:00",
       "published_display": "Jun 12, 2026"
-    },
-    {
-      "title": "Market Fear Index Jumps as AI Worries Build",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-061026/card/market-fear-index-jumps-as-ai-worries-build-TuCmeUhiZedDvbZPepiR?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "The most widely followed gauge of market fear and uncertainty was rising on Wednesday, signaling that investors were feeling uneasy as the artificial-intelligence selloff accelerated. The Cboe Volatility Index, or VIX, jumped 1.",
-      "published": "2026-06-10T11:00:53+00:00",
-      "published_display": "Jun 10, 2026"
-    },
-    {
-      "title": "Market Fear Index Slips as Tech Rebound Rages On",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-060926/card/market-fear-index-slips-as-tech-rebound-rages-on-Nw7qDBWJakeEGtUkLcUP?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "The most widely followed gauge of market fear and uncertainty was dipping on Tuesday, suggesting investors were feeling calm as tech stocks extended their recent rebound. The Cboe Volatility Index, or VIX, dropped 0.",
-      "published": "2026-06-09T10:08:33+00:00",
-      "published_display": "Jun 09, 2026"
     }
   ],
   "indices": [
