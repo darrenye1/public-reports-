@@ -62,7 +62,7 @@ def main() -> None:
                     pass
 
     print("Synced to public/ and docs/")
-    print(f"Wrote {len(rows)} rows, DATA_AS_OF={as_of}, dashboard news/indices/spacex")
+    print(f"Wrote {len(rows)} rows, DATA_AS_OF={as_of}, dashboard news/indices")
 
 
 if __name__ == "__main__":

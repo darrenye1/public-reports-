@@ -55,9 +55,12 @@ SUMMARY_REPORT_NAME = "Top20_Summary.pdf"
 # Blackstone Group = BX (not BSX, which is Boston Scientific).
 EXTRA_PDF_TICKERS: list[str] = ["TSLA", "BX"]
 
+# Always appear in the Top 20 summary table (replaces lowest-ranked name if not in top N by cap).
+SUMMARY_INCLUDE_TICKERS: list[str] = ["SPCX"]
+
 # Broad US universe; ranked by live market cap.
 MEGA_CAP_UNIVERSE: list[str] = [
-    "NVDA", "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "BRK-B", "AVGO", "TSLA",
+    "NVDA", "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "BRK-B", "AVGO", "TSLA", "SPCX",
     "WMT", "JPM", "LLY", "V", "ORCL", "XOM", "MA", "UNH", "COST", "HD", "PG", "NFLX",
     "BAC", "ABBV", "CRM", "KO", "AMD", "PEP", "CVX", "LIN", "TMO", "ADBE", "DIS", "CSCO",
     "MCD", "ABT", "ACN", "INTU", "WFC", "MRK", "GE", "PM", "TXN", "QCOM", "IBM", "CAT",
@@ -87,7 +90,8 @@ SECTOR_PEERS: dict[str, list[str]] = {
     "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY"],
     "Financial Services": ["JPM", "BAC", "WFC", "GS", "MS", "BLK"],
     "Communication Services": ["GOOGL", "META", "DIS", "NFLX", "CMCSA"],
-    "Industrials": ["CAT", "GE", "HON", "UPS", "BA", "DE"],
+    "Industrials": ["CAT", "GE", "HON", "UPS", "BA", "DE", "LMT", "RTX"],
+    "Aerospace & Defense": ["BA", "LMT", "RTX", "NOC", "GD", "HWM"],
     "Energy": ["XOM", "CVX", "COP", "SLB", "EOG"],
     "Consumer Defensive": ["PG", "KO", "PEP", "WMT", "COST"],
 }
@@ -2004,6 +2008,16 @@ def fetch_top_us_market_cap(limit: int = TOP_US_SUMMARY_COUNT) -> list[str]:
     return [t for t, _ in candidates[:limit]]
 
 
+def build_summary_ticker_list(limit: int = TOP_US_SUMMARY_COUNT) -> list[str]:
+    """Top N US mega-caps, ensuring SUMMARY_INCLUDE_TICKERS (e.g. SpaceX / SPCX) are in the table."""
+    tickers = fetch_top_us_market_cap(limit)
+    for symbol in SUMMARY_INCLUDE_TICKERS:
+        sym = symbol.upper()
+        if sym not in tickers:
+            tickers = tickers[: max(0, limit - 1)] + [sym]
+    return tickers[:limit]
+
+
 def clean_report_directory(output_dir: str, keep_summary: bool = False) -> None:
     if not os.path.isdir(output_dir):
         return
@@ -2230,7 +2244,7 @@ def run_batch(
         reset_data_state(output_dir)
         state = {"tickers": {}, "summary_last_run": None}
 
-    summary_tickers = fetch_top_us_market_cap(summary_count)
+    summary_tickers = build_summary_ticker_list(summary_count)
     if len(summary_tickers) < summary_count:
         print(
             f"Warning: ranked only {len(summary_tickers)} tickers (requested {summary_count}).",

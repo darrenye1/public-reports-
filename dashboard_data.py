@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch market news, index series, and SpaceX (SPCX) data for the website dashboard."""
+"""Fetch market news and index series for the website dashboard."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,6 @@ from typing import Any
 
 import yfinance as yf
 
-SPACEX_TICKER = "SPCX"
 NEWS_TICKERS = ("SPY", "^GSPC", "QQQ", "^VIX", "DX-Y.NYB", "GC=F")
 INDEX_CHARTS = (
     ("^GSPC", "S&P 500"),
@@ -159,82 +158,12 @@ def fetch_index_charts(period: str = "6mo") -> list[dict[str, Any]]:
     return charts
 
 
-def fetch_spacex_dashboard() -> dict[str, Any]:
-    """
-    SpaceX via Yahoo ticker SPCX (Space Exploration Technologies Corp.).
-    Runs valuation when possible; otherwise key metrics from filings / Yahoo.
-    """
-    symbol = SPACEX_TICKER
-    block: dict[str, Any] = {
-        "ticker": symbol,
-        "company": "Space Exploration Technologies Corp. (SpaceX)",
-        "note": "Public via NASDAQ (SPCX). Private-company metrics also sourced from SEC S-1 where available.",
-        "has_valuation": False,
-    }
-
-    try:
-        import equity_research as er
-
-        data = er.fetch_company(symbol)
-        summary = er.build_financial_summary(data)
-        competitors = er.build_competitor_analysis(data, summary)
-        valuation = er.build_valuation_summary(data, summary, competitors)
-
-        block.update({
-            "company": summary.company_name or block["company"],
-            "sector": summary.sector,
-            "industry": summary.industry,
-            "price": summary.current_price,
-            "market_cap": summary.market_cap,
-            "pe_ratio": summary.pe_ratio,
-            "revenue_growth_pct": summary.revenue_growth,
-            "operating_margin_pct": summary.operating_margin,
-            "analyst_target": summary.analyst_target,
-            "recommendation": er.recommendation_short(valuation),
-            "target_price": valuation.target_price,
-            "dcf_fair_value": valuation.dcf_target,
-            "comps_fair_value": valuation.comps_target,
-            "upside_pct": (
-                (valuation.target_price / summary.current_price - 1) * 100
-                if valuation.target_price and summary.current_price
-                else None
-            ),
-            "has_valuation": bool(valuation.target_price),
-            "valuation_note": valuation.recommendation,
-        })
-    except Exception as exc:
-        block["fetch_error"] = str(exc)[:120]
-
-    try:
-        info = yf.Ticker(symbol).info or {}
-        if info.get("regularMarketPrice"):
-            block.setdefault("price", info.get("regularMarketPrice"))
-        if info.get("marketCap"):
-            block.setdefault("market_cap", info.get("marketCap"))
-    except Exception:
-        pass
-
-    block["key_metrics"] = [
-        {"label": "2025 Revenue (S-1)", "value": "$18.7B", "detail": "+33% YoY"},
-        {"label": "2025 Adj. EBITDA", "value": "$6.58B", "detail": "Starlink-led mix"},
-        {"label": "2025 Net Income", "value": "-$4.9B", "detail": "Heavy AI / R&D spend"},
-        {"label": "Starlink Revenue", "value": "$11.4B", "detail": "~61% of total"},
-        {"label": "Launch Services", "value": "$4.1B", "detail": "Space segment"},
-        {"label": "AI Segment", "value": "$3.2B", "detail": "xAI integration"},
-        {"label": "IPO Reference Price", "value": "$135 / sh", "detail": "~$1.75T pre-money"},
-        {"label": "Starlink Subscribers", "value": "10M+", "detail": "Consumer + enterprise"},
-    ]
-
-    return block
-
-
 def build_dashboard_payload() -> dict[str, Any]:
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "data_as_of": datetime.now().strftime("%Y-%m-%d"),
         "news": fetch_macro_news(limit=5),
         "indices": fetch_index_charts(),
-        "spacex": fetch_spacex_dashboard(),
     }
 
 
@@ -248,4 +177,4 @@ def write_dashboard_js(path: str) -> dict[str, Any]:
 
 if __name__ == "__main__":
     payload = write_dashboard_js("public/dashboard-data.js")
-    print(f"News: {len(payload['news'])} | Indices: {len(payload['indices'])} | SpaceX price: {payload['spacex'].get('price')}")
+    print(f"News: {len(payload['news'])} | Indices: {len(payload['indices'])}")

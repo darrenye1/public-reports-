@@ -1,5 +1,5 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:09:34Z",
+  "generated_at": "2026-06-12T21:18:09Z",
   "data_as_of": "2026-06-12",
   "news": [
     {
@@ -564,67 +564,5 @@ window.DASHBOARD_DATA = {
         116.33
       ]
     }
-  ],
-  "spacex": {
-    "ticker": "SPCX",
-    "company": "Space Exploration Technologies Corp. Class A Common Stock",
-    "note": "Public via NASDAQ (SPCX). Private-company metrics also sourced from SEC S-1 where available.",
-    "has_valuation": true,
-    "sector": "Industrials",
-    "industry": "Aerospace & Defense",
-    "price": 160.95,
-    "market_cap": 2104560582656,
-    "pe_ratio": null,
-    "revenue_growth_pct": 15.4,
-    "operating_margin_pct": -41.627997,
-    "analyst_target": 139.33333,
-    "recommendation": "UNDERWEIGHT",
-    "target_price": 139.33333,
-    "dcf_fair_value": null,
-    "comps_fair_value": null,
-    "upside_pct": -13.430674122398257,
-    "valuation_note": "UNDERWEIGHT - Trading above model fair value",
-    "key_metrics": [
-      {
-        "label": "2025 Revenue (S-1)",
-        "value": "$18.7B",
-        "detail": "+33% YoY"
-      },
-      {
-        "label": "2025 Adj. EBITDA",
-        "value": "$6.58B",
-        "detail": "Starlink-led mix"
-      },
-      {
-        "label": "2025 Net Income",
-        "value": "-$4.9B",
-        "detail": "Heavy AI / R&D spend"
-      },
-      {
-        "label": "Starlink Revenue",
-        "value": "$11.4B",
-        "detail": "~61% of total"
-      },
-      {
-        "label": "Launch Services",
-        "value": "$4.1B",
-        "detail": "Space segment"
-      },
-      {
-        "label": "AI Segment",
-        "value": "$3.2B",
-        "detail": "xAI integration"
-      },
-      {
-        "label": "IPO Reference Price",
-        "value": "$135 / sh",
-        "detail": "~$1.75T pre-money"
-      },
-      {
-        "label": "Starlink Subscribers",
-        "value": "10M+",
-        "detail": "Consumer + enterprise"
-      }
-    ]
-  }
+  ]
 };
