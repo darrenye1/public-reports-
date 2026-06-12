@@ -109,9 +109,11 @@ COMPS_IMPLIED_PRICE_CAP_VS_CURRENT = 3.0
 MAX_PROJECTED_FCFE_GROWTH = 0.12
 VALUATION_AUDIT_THRESHOLD_PCT = 30.0
 EXTREME_UPSIDE_PCT = VALUATION_AUDIT_THRESHOLD_PCT
+TARGET_SANITY_CAP_PCT = 40.0
 BUY_MIN_CONFIRMING_METHODS = 2
 SOLO_ANALYST_LOW_MODEL_VS_CURRENT = 0.85
 METHOD_CLUSTER_BAND_PCT = 0.30
+_BLEND_SKIP_KEYS = frozenset({"Audit"})
 
 NAVY = colors.HexColor("#1a365d")
 ACCENT = colors.HexColor("#2b6cb0")
@@ -1293,11 +1295,52 @@ def _check_valuation_data_completeness(
     return gaps
 
 
-def _cluster_method_prices(methods: dict[str, float]) -> list[float]:
+def _consensus_blend_prices(methods: dict[str, float], excluded: dict[str, str]) -> list[float]:
+    """
+    Prices eligible for target median — never includes rejected methods.
+    If none remain, use Comps + Analyst only (DCF often distorted on growth names).
+    """
+    prices: list[float] = []
+    for name, price in methods.items():
+        if name in _BLEND_SKIP_KEYS or price <= 0:
+            continue
+        if name in excluded:
+            continue
+        prices.append(price)
+    if prices:
+        return prices
+    for name in ("Comps", "Analyst"):
+        if name in methods and methods[name] > 0:
+            prices.append(methods[name])
+    if prices:
+        return prices
+    return [p for p in methods.values() if p > 0]
+
+
+def _consensus_target(methods: dict[str, float], excluded: dict[str, str]) -> float | None:
+    prices = _consensus_blend_prices(methods, excluded)
+    if not prices:
+        return None
+    return statistics.median(prices)
+
+
+def _cap_target_sanity(target: float | None, current: float) -> tuple[float | None, bool]:
+    """Hard cap |upside| at TARGET_SANITY_CAP_PCT when models still diverge materially."""
+    if not target or current <= 0:
+        return target, False
+    upside = (target / current - 1) * 100
+    if abs(upside) <= TARGET_SANITY_CAP_PCT:
+        return target, False
+    capped = current * (1 + TARGET_SANITY_CAP_PCT / 100) if upside > 0 else current * (1 - TARGET_SANITY_CAP_PCT / 100)
+    return capped, True
+
+
+def _cluster_method_prices(methods: dict[str, float], excluded: dict[str, str] | None = None) -> list[float]:
     """Prices within METHOD_CLUSTER_BAND_PCT of the cross-method median."""
-    if len(methods) < 2:
-        return list(methods.values())
-    prices = sorted(methods.values())
+    prices = _consensus_blend_prices(methods, excluded or {})
+    if len(prices) < 2:
+        return prices
+    prices = sorted(prices)
     med = statistics.median(prices)
     if med <= 0:
         return prices
@@ -1344,29 +1387,30 @@ def _apply_valuation_audit(
 
     if gaps:
         actions.append(f"Incomplete data: {', '.join(gaps)}")
-        target_price = statistics.median(list(methods.values()))
+        target_price = _consensus_target(methods, excluded)
         weights = {}
         used_median_fallback = True
         analyst_reliable = False
-        actions.append("Target set to all-method median (data gaps)")
+        actions.append("Target set to consensus median (data gaps; DCF excluded if rejected)")
 
-    cluster = _cluster_method_prices(methods)
-    if abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT and len(methods) >= 2:
+    consensus = _consensus_blend_prices(methods, excluded)
+    cluster = _cluster_method_prices(methods, excluded)
+    if abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT and len(consensus) >= 2:
         if len(cluster) < BUY_MIN_CONFIRMING_METHODS:
-            target_price = statistics.median(list(methods.values()))
+            target_price = statistics.median(consensus)
             weights = {}
             used_median_fallback = True
-            actions.append("Methods diverge >30%: target anchored to full median")
-        elif len(cluster) < len(methods):
+            actions.append("Methods diverge >30%: target anchored to Comps/Analyst consensus")
+        elif len(cluster) < len(consensus):
             target_price = statistics.median(cluster)
             weights = {}
             used_median_fallback = True
             actions.append(f"Target from {len(cluster)}-method cluster (within 30% band)")
 
     if abs(_method_upside_pct(target_price, current) or 0) >= VALUATION_AUDIT_THRESHOLD_PCT:
-        if len(active) == 1 and len(methods) >= 2:
+        if len(active) == 1 and len(consensus) >= 2:
             sole = next(iter(active))
-            target_price = statistics.median(list(methods.values()))
+            target_price = statistics.median(consensus)
             weights = {}
             used_median_fallback = True
             if sole == "Analyst":
@@ -1375,9 +1419,11 @@ def _apply_valuation_audit(
                 excluded.get(sole, "Included in blend")
                 + f"; Audit: sole active method >{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price"
             )
-            actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: median blend applied")
+            actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: consensus blend applied")
 
-        method_pool = {k: v for k, v in methods.items() if v in cluster} or methods
+        method_pool = {k: v for k, v in methods.items() if v in cluster} if cluster else {
+            k: v for k, v in methods.items() if v in consensus
+        }
         if diff_pct > 0:
             confirming = _count_upside_methods(method_pool, current, min_upside_pct=8.0)
         else:
@@ -1385,13 +1431,20 @@ def _apply_valuation_audit(
                 1 for p in method_pool.values()
                 if p > 0 and (p / current - 1) * 100 < -8.0
             )
-        if diff_pct > 0 and confirming < BUY_MIN_CONFIRMING_METHODS and len(methods) >= 2:
-            conservative = statistics.median(list(methods.values()))
+        if diff_pct > 0 and confirming < BUY_MIN_CONFIRMING_METHODS and len(consensus) >= 2:
+            conservative = statistics.median(consensus)
             if conservative < target_price:
                 target_price = conservative
                 weights = {}
                 used_median_fallback = True
-                actions.append("High upside with <2 confirming methods: capped at median")
+                actions.append("High upside with <2 confirming methods: capped at consensus median")
+
+    capped, was_capped = _cap_target_sanity(target_price, current)
+    if was_capped and capped is not None:
+        target_price = capped
+        weights = {}
+        used_median_fallback = True
+        actions.append(f"Target capped at ±{TARGET_SANITY_CAP_PCT:.0f}% vs price (model dispersion)")
 
     if actions:
         excluded["Audit"] = "; ".join(actions)
@@ -1470,7 +1523,7 @@ def build_valuation_summary(
     base_weights = {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28}
     weights = {k: base_weights[k] for k in active}
     if not weights and methods:
-        target_price = statistics.median(list(methods.values()))
+        target_price = _consensus_target(methods, excluded)
         weights = {}
         used_median_fallback = True
     else:
@@ -1478,18 +1531,17 @@ def build_valuation_summary(
         weights = {k: v / total_w for k, v in weights.items()}
         target_price = sum(active[k] * weights[k] for k in active) if active else None
 
-    # Analyst-only when DCF/Comps were excluded as too low: use median of all signals.
+    # Analyst-only when DCF/Comps were excluded as too low: Comps + Analyst consensus (no DCF).
     suppressed_low = _suppressed_low_model_prices(methods, excluded, current)
     if target_price and set(active.keys()) == {"Analyst"} and suppressed_low:
-        blend_vals = [active["Analyst"]] + suppressed_low
-        target_price = statistics.median(blend_vals)
+        target_price = _consensus_target(methods, excluded)
         weights = {}
         used_median_fallback = True
         analyst_reliable = False
         excluded = dict(excluded)
-        excluded["Analyst"] = "Median with excluded low DCF/Comps (solo analyst not used)"
+        excluded["Analyst"] = "Consensus with Comps (excluded low DCF not used in blend)"
 
-    # Extreme upside on a single active method: anchor to median of all raw methods.
+    # Extreme upside on a single active method: anchor to Comps/Analyst consensus.
     if (
         target_price
         and current > 0
@@ -1498,7 +1550,7 @@ def build_valuation_summary(
         and len(methods) >= 2
         and (target_price / current - 1) * 100 > EXTREME_UPSIDE_PCT
     ):
-        target_price = statistics.median(list(methods.values()))
+        target_price = _consensus_target(methods, excluded)
         weights = {}
         used_median_fallback = True
 
