@@ -43,7 +43,19 @@ python equity_research.py --batch-top20 --refresh-stale --stale-days 7 --force
 | Script | Purpose |
 |--------|---------|
 | `run_daily_refresh.bat` | Daily `--refresh-stale` (checks new earnings period) |
-| `run_weekly.bat` | Mondays only; same stale logic |
+| `run_weekly.bat` | Mondays only; stale refresh + `sync_website` |
+
+### GitHub Actions (fully automatic — recommended)
+
+Push `.github/workflows/weekly-update.yml` to `main`. Then:
+
+1. On GitHub: **Settings → Actions → General → Workflow permissions** → select **Read and write permissions** → Save.
+2. Every **Monday 14:00 UTC** (~9:00 AM US Eastern): Actions runs the batch, syncs `public/` + `docs/`, commits, and pushes.
+3. **Vercel** auto-deploys after the push (Output Directory = `public`).
+
+Manual run anytime: **Actions → Weekly research update → Run workflow** (optional **Force full refresh**).
+
+No local machine or GitHub Desktop needed after this is enabled.
 
 Full Monday rebuild (optional):
 
