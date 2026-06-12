@@ -1,46 +1,69 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:27:15Z",
+  "generated_at": "2026-06-12T21:40:11Z",
   "data_as_of": "2026-06-12",
   "news": [
-    {
-      "title": "The Fed Just Triggered a Sharp Tech-Sector Sell-Off: Here Is the 1 Dirt-Cheap Financial Disruptor I’m Buying Hand Over Fist",
-      "url": "https://finance.yahoo.com/markets/stocks/articles/fed-just-triggered-sharp-tech-211258894.html",
-      "source": "24/7 Wall St.",
-      "summary": "I keep hitting the buy button on SoFi Technologies (NASDAQ:SOFI), and the Fed-driven tech sell-off this month has only made my finger heavier. The stock sits at $16.67, down 36.33% year to date, while the QQQ has gained 16.74% over the same window. That gap is the opportunity. Th",
-      "published": "2026-06-12T21:12:58+00:00",
-      "published_display": "Jun 12, 2026"
-    },
-    {
-      "title": "Stock Market Today: Dow Ends Higher On Iran Deal Hopes; SpaceX Rockets 19% In Debut",
-      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-sp500-nasdaq-iran-deal-spacex-ipo-spcx-stock/?src=A00220&yptr=yahoo",
-      "source": "Investor's Business Daily",
-      "summary": "Stock Market Today: The Dow Jones index rises Friday on U.S.-Iran peace deal hopes. SpaceX stock jumps on its debut.",
-      "published": "2026-06-12T21:06:20+00:00",
-      "published_display": "Jun 12, 2026"
-    },
-    {
-      "title": "Dow Jones Futures: Market Has Wild Week, 5 Stocks In Buy Areas; SpaceX's Next Test",
-      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-market-wild-week-5-stocks-buy-areas-spacex-next-test/?src=A00220&yptr=yahoo",
-      "source": "Investor's Business Daily",
-      "summary": "The stock market had a wild but winning week. Comfort Systems and Viavi lead stocks making bullish rebounds. The SpaceX IPO took off.",
-      "published": "2026-06-12T21:00:29+00:00",
-      "published_display": "Jun 12, 2026"
-    },
     {
       "title": "Indexes Settle Higher as SpaceX Soars in Trading Debut",
       "url": "https://finance.yahoo.com/markets/stocks/articles/stock-futures-investors-await-historic-104400409.html",
       "source": "The Wall Street Journal",
       "summary": "It wasn’t all SpaceX in markets today. A big gain in financial stocks boosted the Dow Jones Industrial Average. The blue-chip index added 0.7%. The S 500 rose 0.5%. The tech-heavy Nasdaq advanced about 0.3%.",
       "published": "2026-06-12T20:55:00+00:00",
-      "published_display": "Jun 12, 2026"
+      "published_display": "Jun 12, 2026",
+      "day": "2026-06-12"
     },
     {
-      "title": "Money Is Quietly Rotating Out of the AI Trade. These 3 Unexpected Stocks Just Hit All-Time Highs.",
-      "url": "https://finance.yahoo.com/markets/stocks/articles/money-quietly-rotating-ai-trade-205100245.html",
-      "source": "Motley Fool",
-      "summary": "While the market's high-flying tech trade pulls back, a handful of familiar consumer names are quietly setting records that stretch back decades.",
-      "published": "2026-06-12T20:51:00+00:00",
-      "published_display": "Jun 12, 2026"
+      "title": "Sticky Inflation’s Worst Nightmare: Why Small Value Stocks Are Secretly Printing Money",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/sticky-inflation-worst-nightmare-why-142901036.html",
+      "source": "24/7 Wall St.",
+      "summary": "Core inflation rate came in at 2.9% year-over-year yesterday. This stopped interest rate hike expectations from being anchored, and the 10-year Treasury closed last week near 4.6%. That backdrop is still supposed to be poison for stocks. Yet the Avantis U.S. Small Cap Value ETF (",
+      "published": "2026-06-11T14:29:01+00:00",
+      "published_display": "Jun 11, 2026",
+      "day": "2026-06-11"
+    },
+    {
+      "title": "Market Fear Index Jumps as AI Worries Build",
+      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-061026/card/market-fear-index-jumps-as-ai-worries-build-TuCmeUhiZedDvbZPepiR?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "The most widely followed gauge of market fear and uncertainty was rising on Wednesday, signaling that investors were feeling uneasy as the artificial-intelligence selloff accelerated. The Cboe Volatility Index, or VIX, jumped 1.",
+      "published": "2026-06-10T11:00:53+00:00",
+      "published_display": "Jun 10, 2026",
+      "day": "2026-06-10"
+    },
+    {
+      "title": "Stocks Are Flirting With a Dangerous Valuation Trap",
+      "url": "https://www.barrons.com/articles/stock-market-valuation-trap-bond-yields-80f27243?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "What hasn’t really moved, however, is the longer end of the bond market, where yields remain elevated and forecasts for Federal Reserve rate hikes are getting increasingly aggressive following last week’s stronger-than-expected payroll data, and ahead of Wednesday’s May inflation",
+      "published": "2026-06-09T12:21:00+00:00",
+      "published_display": "Jun 09, 2026",
+      "day": "2026-06-09"
+    },
+    {
+      "title": "Market Fear Index Slides as Investors Pile Back Into Tech Stocks",
+      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-060826/card/market-fear-index-slides-as-investors-pile-back-into-tech-stocks-lMyiHu0LDahwtFCIDX6G?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "Investors were feeling a bit calmer as they bought the dip in tech stocks following Friday's brutal AI selloff. The Cboe Volatility Index, a widely followed fear gauge that trades under the ticker VIX, dropped about 2 points to 19.",
+      "published": "2026-06-08T11:06:17+00:00",
+      "published_display": "Jun 08, 2026",
+      "day": "2026-06-08"
+    },
+    {
+      "title": "If You Hold This 20 Year Treasury ETF You Are Losing Money Even With Yields Up",
+      "url": "https://finance.yahoo.com/markets/options/articles/hold-20-treasury-etf-losing-142141990.html",
+      "source": "24/7 Wall St.",
+      "summary": "A 68-year-old retiree who moved $180,000 out of stocks and into the iShares 20+ Year Treasury Bond ETF (NASDAQ:TLT) in late 2024 was making a directional rate bet. The pitch was clean: lock in a 4.5% long-bond yield before the Federal Reserve cut rates, then collect price appreci",
+      "published": "2026-06-07T14:21:41+00:00",
+      "published_display": "Jun 07, 2026",
+      "day": "2026-06-07"
+    },
+    {
+      "title": "Top Wall Street Strategist: AI ‘Reality Check’ Is Coming as Bond Market Flashes Warning Signs",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/top-wall-street-strategist-ai-115615116.html",
+      "source": "24/7 Wall St.",
+      "summary": "The market is on its longest winning streak since 1985, AI enthusiasm is running at levels one strategist calls “unbelievable,” and the IPO window has cracked open wide. Into that backdrop, Robert Teeter, Chief Investment Strategist at Silvercrest Asset Management, walked onto CN",
+      "published": "2026-06-06T11:56:15+00:00",
+      "published_display": "Jun 06, 2026",
+      "day": "2026-06-06"
     }
   ],
   "indices": [

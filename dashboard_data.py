@@ -7,9 +7,15 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from zoneinfo import ZoneInfo
+
 import yfinance as yf
 
-NEWS_TICKERS = ("SPY", "^GSPC", "QQQ", "^VIX", "DX-Y.NYB", "GC=F")
+ET = ZoneInfo("America/New_York")
+NEWS_TICKERS = (
+    "SPY", "^GSPC", "QQQ", "^VIX", "DX-Y.NYB", "GC=F",
+    "DIA", "IWM", "TLT", "HYG", "XLF", "XLE", "GLD",
+)
 INDEX_CHARTS = (
     ("^GSPC", "S&P 500"),
     ("^DJI", "Dow Jones"),
@@ -24,6 +30,27 @@ MACRO_KEYWORDS = (
     "tariff", "trade war", "recession", "geopolit", "oil", "crude", "opec",
     "earnings season", "volatility", "vix", "bond", "dollar", "china", "war",
     "semiconductor", "ai ", "chip", "debt ceiling", "shutdown", "payroll",
+)
+
+PREMIUM_SOURCES: tuple[tuple[str, int], ...] = (
+    ("wall street journal", 4),
+    ("barrons.com", 4),
+    ("barrons", 4),
+    ("reuters", 4),
+    ("bloomberg", 4),
+    ("financial times", 3),
+    ("cnbc", 2),
+    ("marketwatch", 2),
+    ("investor's business daily", 2),
+    ("associated press", 2),
+    ("ap news", 2),
+)
+
+HIGH_IMPACT_TERMS = (
+    "fed", "fomc", "cpi", "ppi", "jobs report", "nonfarm", "payroll", "tariff",
+    "selloff", "rally", "surge", "plunge", "crash", "rate cut", "rate hike",
+    "recession", "inflation", "treasury", "vix", "geopolit", "war", "ipo",
+    "earnings", "gdp", "shutdown", "debt ceiling",
 )
 
 
@@ -76,11 +103,26 @@ def _macro_score(title: str, summary: str) -> int:
     return sum(1 for kw in MACRO_KEYWORDS if kw in text)
 
 
-def fetch_macro_news(limit: int = 5, max_age_days: int = 7) -> list[dict[str, str]]:
-    """Top macro/market headlines from the past week (Yahoo Finance)."""
+def _impact_score(title: str, summary: str, source: str) -> int:
+    """Rank headlines by macro relevance + source quality + market-moving terms."""
+    text = f"{title} {summary}".lower()
+    score = _macro_score(title, summary) * 3
+    src = source.lower()
+    for name, pts in PREMIUM_SOURCES:
+        if name in src:
+            score += pts
+            break
+    score += sum(2 for term in HIGH_IMPACT_TERMS if term in text)
+    if any(k in text for k in ("s&p 500", "s&p", "dow jones", "dow", "nasdaq", "russell")):
+        score += 2
+    return score
+
+
+def _collect_news_candidates(max_age_days: int = 7) -> list[tuple[int, datetime, dict[str, str]]]:
+    """Gather deduplicated Yahoo Finance stories within the lookback window."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     seen_titles: set[str] = set()
-    scored: list[tuple[int, datetime, dict[str, str]]] = []
+    candidates: list[tuple[int, datetime, dict[str, str]]] = []
 
     for ticker in NEWS_TICKERS:
         try:
@@ -95,38 +137,46 @@ def fetch_macro_news(limit: int = 5, max_age_days: int = 7) -> list[dict[str, st
             if norm in seen_titles:
                 continue
             pub = _parse_news_date(parsed["published"])
-            if pub and pub < cutoff:
-                continue
-            score = _macro_score(parsed["title"], parsed["summary"])
-            if score < 1:
+            if not pub or pub < cutoff:
                 continue
             seen_titles.add(norm)
-            scored.append((score, pub or datetime.min.replace(tzinfo=timezone.utc), parsed))
+            impact = _impact_score(parsed["title"], parsed["summary"], parsed["source"])
+            candidates.append((impact, pub, parsed))
 
-    scored.sort(key=lambda x: (-x[1].timestamp(), -x[0]))
-    if len(scored) < limit:
-        for ticker in NEWS_TICKERS:
-            try:
-                items = yf.Ticker(ticker).news or []
-            except Exception:
-                continue
-            for raw in items:
-                parsed = _news_item_fields(raw)
-                if not parsed:
-                    continue
-                norm = re.sub(r"\s+", " ", parsed["title"].lower())
-                if norm in seen_titles:
-                    continue
-                pub = _parse_news_date(parsed["published"])
-                if pub and pub < cutoff:
-                    continue
-                seen_titles.add(norm)
-                scored.append((0, pub or datetime.min.replace(tzinfo=timezone.utc), parsed))
-                if len(scored) >= limit * 3:
-                    break
+    return candidates
 
-    scored.sort(key=lambda x: (-x[1].timestamp(), -x[0]))
-    return [row[2] for row in scored[:limit]]
+
+def _day_key_et(dt: datetime) -> str:
+    return dt.astimezone(ET).strftime("%Y-%m-%d")
+
+
+def fetch_macro_news(days: int = 7) -> list[dict[str, str]]:
+    """One high-impact macro/market headline per calendar day (past week, newest first)."""
+    now_et = datetime.now(ET)
+    candidates = _collect_news_candidates(max_age_days=days + 1)
+
+    by_day: dict[str, list[tuple[int, datetime, dict[str, str]]]] = {}
+    for item in candidates:
+        _, pub, _ = item
+        by_day.setdefault(_day_key_et(pub), []).append(item)
+
+    picked: list[dict[str, str]] = []
+    used_titles: set[str] = set()
+    for offset in range(days):
+        day_key = (now_et - timedelta(days=offset)).strftime("%Y-%m-%d")
+        pool = [
+            row for row in by_day.get(day_key, [])
+            if re.sub(r"\s+", " ", row[2]["title"].lower()) not in used_titles
+        ]
+        if not pool:
+            continue
+        _, _, story = max(pool, key=lambda row: (row[0], row[1].timestamp()))
+        used_titles.add(re.sub(r"\s+", " ", story["title"].lower()))
+        story = dict(story)
+        story["day"] = day_key
+        picked.append(story)
+
+    return picked
 
 
 def fetch_index_charts(period: str = "6mo") -> list[dict[str, Any]]:
@@ -162,7 +212,7 @@ def build_dashboard_payload() -> dict[str, Any]:
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "data_as_of": datetime.now().strftime("%Y-%m-%d"),
-        "news": fetch_macro_news(limit=5),
+        "news": fetch_macro_news(days=7),
         "indices": fetch_index_charts(),
     }
 
