@@ -1,5 +1,5 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:06:56Z",
+  "generated_at": "2026-06-12T21:09:34Z",
   "data_as_of": "2026-06-12",
   "news": [
     {
@@ -9,6 +9,14 @@ window.DASHBOARD_DATA = {
       "summary": "Investors were feeling a bit calmer as they bought the dip in tech stocks following Friday's brutal AI selloff. The Cboe Volatility Index, a widely followed fear gauge that trades under the ticker VIX, dropped about 2 points to 19.",
       "published": "2026-06-08T11:06:17+00:00",
       "published_display": "Jun 08, 2026"
+    },
+    {
+      "title": "Indexes Settle Higher as SpaceX Soars in Trading Debut",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/stock-futures-investors-await-historic-104400409.html",
+      "source": "The Wall Street Journal",
+      "summary": "It wasn’t all SpaceX in markets today. A big gain in financial stocks boosted the Dow Jones Industrial Average. The blue-chip index added 0.7%. The S 500 rose 0.5%. The tech-heavy Nasdaq advanced about 0.3%.",
+      "published": "2026-06-12T20:55:00+00:00",
+      "published_display": "Jun 12, 2026"
     },
     {
       "title": "Stocks See Downward Pressure Despite Hopes for a Near-term US-Iran Agreement",
@@ -33,14 +41,6 @@ window.DASHBOARD_DATA = {
       "summary": "The most widely followed gauge of market fear and uncertainty was dipping on Tuesday, suggesting investors were feeling calm as tech stocks extended their recent rebound. The Cboe Volatility Index, or VIX, dropped 0.",
       "published": "2026-06-09T10:08:33+00:00",
       "published_display": "Jun 09, 2026"
-    },
-    {
-      "title": "Dow Rises 350 Points. Big Tech Struggles in Shadow of SpaceX IPO.",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-061226/card/dow-rises-350-points-big-tech-struggles-in-shadow-of-spacex-ipo--3o2X4gCkksWfLyAcl5JJ?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "The stock market ended another turbulent week on a high note amid all the buzz of SpaceX’s initial public offering. The Dow Jones Industrial Average rose 353 points, or 0.7%. The S&P 500 gained 0.5%. The Nasdaq rose 0.",
-      "published": "2026-06-12T20:02:29+00:00",
-      "published_display": "Jun 12, 2026"
     }
   ],
   "indices": [
