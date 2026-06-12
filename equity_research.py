@@ -107,6 +107,11 @@ PS_EXCLUDE_KEYWORDS = (
 COMPS_IMPLIED_PRICE_FLOOR_VS_CURRENT = 0.25
 COMPS_IMPLIED_PRICE_CAP_VS_CURRENT = 3.0
 MAX_PROJECTED_FCFE_GROWTH = 0.12
+VALUATION_AUDIT_THRESHOLD_PCT = 30.0
+EXTREME_UPSIDE_PCT = VALUATION_AUDIT_THRESHOLD_PCT
+BUY_MIN_CONFIRMING_METHODS = 2
+SOLO_ANALYST_LOW_MODEL_VS_CURRENT = 0.85
+METHOD_CLUSTER_BAND_PCT = 0.30
 
 NAVY = colors.HexColor("#1a365d")
 ACCENT = colors.HexColor("#2b6cb0")
@@ -243,6 +248,9 @@ class ValuationSummary:
     analyst_reliable: bool = True
     excluded_methods: dict[str, str] = field(default_factory=dict)
     blend_weights: dict[str, float] = field(default_factory=dict)
+    valuation_audit_triggered: bool = False
+    valuation_audit_notes: list[str] = field(default_factory=list)
+    data_gaps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -1211,6 +1219,218 @@ def _filter_valuation_methods(
     return active, excluded
 
 
+def _suppressed_low_model_prices(
+    methods: dict[str, float],
+    excluded: dict[str, str],
+    current: float,
+) -> list[float]:
+    """Raw DCF/Comps excluded as too low vs market — still informative for blend."""
+    if current <= 0:
+        return []
+    prices: list[float] = []
+    for name in ("DCF", "Comps"):
+        if name not in excluded or name not in methods:
+            continue
+        p = methods[name]
+        if p > 0 and p < current * SOLO_ANALYST_LOW_MODEL_VS_CURRENT:
+            prices.append(p)
+    return prices
+
+
+def _count_upside_methods(active: dict[str, float], current: float, min_upside_pct: float = 8.0) -> int:
+    if current <= 0:
+        return 0
+    return sum(1 for p in active.values() if p > 0 and (p / current - 1) * 100 > min_upside_pct)
+
+
+def _method_upside_pct(price: float | None, current: float) -> float | None:
+    if not price or not current or current <= 0:
+        return None
+    return (price / current - 1) * 100
+
+
+def _needs_valuation_audit(
+    target_price: float | None,
+    current: float,
+    methods: dict[str, float],
+) -> bool:
+    if not target_price or current <= 0:
+        return False
+    if abs(_method_upside_pct(target_price, current) or 0) >= VALUATION_AUDIT_THRESHOLD_PCT:
+        return True
+    return any(
+        abs(up) >= VALUATION_AUDIT_THRESHOLD_PCT
+        for p in methods.values()
+        if (up := _method_upside_pct(p, current)) is not None
+    )
+
+
+def _check_valuation_data_completeness(
+    data: CompanyData,
+    summary: FinancialSummary,
+    comp_analysis: CompetitorAnalysis,
+) -> list[str]:
+    gaps: list[str] = []
+    if not summary.current_price or summary.current_price <= 0:
+        gaps.append("current price")
+    if not get_shares_outstanding(data.info):
+        gaps.append("shares outstanding")
+    if not get_revenue(data.financials, data.info):
+        gaps.append("revenue (TTM)")
+    if not summary.analyst_target or summary.analyst_target <= 0:
+        gaps.append("analyst consensus target")
+    peer_n = len(comp_analysis.peers)
+    if peer_n < 2:
+        gaps.append(f"sector peers (have {peer_n}, need ≥2)")
+    if not _is_financial_sector(summary):
+        eps = get_info_value(data.info, "trailingEps")
+        if not eps or eps <= 0:
+            gaps.append("positive trailing EPS")
+        if data.cashflow is None or data.cashflow.empty:
+            gaps.append("cash flow statement")
+        if _use_ev_ebitda_comps(summary) and not get_ebitda(data.financials, data.info):
+            gaps.append("EBITDA")
+    return gaps
+
+
+def _cluster_method_prices(methods: dict[str, float]) -> list[float]:
+    """Prices within METHOD_CLUSTER_BAND_PCT of the cross-method median."""
+    if len(methods) < 2:
+        return list(methods.values())
+    prices = sorted(methods.values())
+    med = statistics.median(prices)
+    if med <= 0:
+        return prices
+    return [p for p in prices if abs(p - med) / med <= METHOD_CLUSTER_BAND_PCT]
+
+
+def _apply_valuation_audit(
+    data: CompanyData,
+    summary: FinancialSummary,
+    comp_analysis: CompetitorAnalysis,
+    methods: dict[str, float],
+    active: dict[str, float],
+    excluded: dict[str, str],
+    target_price: float | None,
+    current: float,
+    weights: dict[str, float],
+    used_median_fallback: bool,
+) -> tuple[
+    float | None,
+    dict[str, float],
+    dict[str, str],
+    bool,
+    bool,
+    bool,
+    bool,
+    list[str],
+    list[str],
+]:
+    """Re-validate when |upside| ≥ 30%; tighten target if data or methods are weak."""
+    gaps = _check_valuation_data_completeness(data, summary, comp_analysis)
+    actions: list[str] = []
+    excluded = dict(excluded)
+    dcf_reliable = "DCF" in active
+    comps_reliable = "Comps" in active
+    analyst_reliable = "Analyst" in active
+
+    if not target_price or current <= 0 or not methods:
+        return (
+            target_price, weights, excluded, used_median_fallback,
+            dcf_reliable, comps_reliable, analyst_reliable, gaps, actions,
+        )
+
+    diff_pct = _method_upside_pct(target_price, current) or 0
+
+    if gaps:
+        actions.append(f"Incomplete data: {', '.join(gaps)}")
+        target_price = statistics.median(list(methods.values()))
+        weights = {}
+        used_median_fallback = True
+        analyst_reliable = False
+        actions.append("Target set to all-method median (data gaps)")
+
+    cluster = _cluster_method_prices(methods)
+    if abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT and len(methods) >= 2:
+        if len(cluster) < BUY_MIN_CONFIRMING_METHODS:
+            target_price = statistics.median(list(methods.values()))
+            weights = {}
+            used_median_fallback = True
+            actions.append("Methods diverge >30%: target anchored to full median")
+        elif len(cluster) < len(methods):
+            target_price = statistics.median(cluster)
+            weights = {}
+            used_median_fallback = True
+            actions.append(f"Target from {len(cluster)}-method cluster (within 30% band)")
+
+    if abs(_method_upside_pct(target_price, current) or 0) >= VALUATION_AUDIT_THRESHOLD_PCT:
+        if len(active) == 1 and len(methods) >= 2:
+            sole = next(iter(active))
+            target_price = statistics.median(list(methods.values()))
+            weights = {}
+            used_median_fallback = True
+            if sole == "Analyst":
+                analyst_reliable = False
+            excluded[sole] = (
+                excluded.get(sole, "Included in blend")
+                + f"; Audit: sole active method >{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price"
+            )
+            actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: median blend applied")
+
+        method_pool = {k: v for k, v in methods.items() if v in cluster} or methods
+        if diff_pct > 0:
+            confirming = _count_upside_methods(method_pool, current, min_upside_pct=8.0)
+        else:
+            confirming = sum(
+                1 for p in method_pool.values()
+                if p > 0 and (p / current - 1) * 100 < -8.0
+            )
+        if diff_pct > 0 and confirming < BUY_MIN_CONFIRMING_METHODS and len(methods) >= 2:
+            conservative = statistics.median(list(methods.values()))
+            if conservative < target_price:
+                target_price = conservative
+                weights = {}
+                used_median_fallback = True
+                actions.append("High upside with <2 confirming methods: capped at median")
+
+    if actions:
+        excluded["Audit"] = "; ".join(actions)
+
+    return (
+        target_price, weights, excluded, used_median_fallback,
+        dcf_reliable, comps_reliable, analyst_reliable, gaps, actions,
+    )
+
+
+def _recommendation_from_upside(
+    diff_pct: float,
+    active: dict[str, float],
+    current: float,
+    used_median_fallback: bool,
+    audit_triggered: bool = False,
+) -> str:
+    confirming = _count_upside_methods(active, current)
+    if diff_pct > 15:
+        if audit_triggered and (diff_pct > EXTREME_UPSIDE_PCT or used_median_fallback):
+            if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
+                return "BUY - Models suggest meaningful upside (audit confirmed)"
+            return "OVERWEIGHT - Elevated upside; audit-adjusted blend"
+        if diff_pct > EXTREME_UPSIDE_PCT and confirming < BUY_MIN_CONFIRMING_METHODS:
+            return "OVERWEIGHT - Elevated upside; limited multi-method confirmation"
+        if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
+            return "BUY - Models suggest meaningful upside"
+        return "OVERWEIGHT - Modest upside; mixed model signals"
+    if diff_pct > 5:
+        return "OVERWEIGHT - Modest upside to fair value"
+    if diff_pct > -5:
+        return "HOLD - Fairly valued"
+    if diff_pct > -15:
+        return "UNDERWEIGHT - Trading above model fair value"
+    if diff_pct <= -EXTREME_UPSIDE_PCT and confirming == 0:
+        return "SELL - Significant downside vs models"
+    return "SELL - Significant downside vs models"
+
+
 def build_valuation_summary(
     data: CompanyData,
     summary: FinancialSummary,
@@ -1245,32 +1465,64 @@ def build_valuation_summary(
     dcf_reason = excluded.get("DCF", "")
     comps_reliable = "Comps" in active
     analyst_reliable = "Analyst" in active
+    used_median_fallback = False
 
     base_weights = {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28}
     weights = {k: base_weights[k] for k in active}
     if not weights and methods:
-        # fallback: median of all raw methods
-        prices = list(methods.values())
-        med = statistics.median(prices)
-        target_price = med
+        target_price = statistics.median(list(methods.values()))
         weights = {}
+        used_median_fallback = True
     else:
         total_w = sum(weights.values())
         weights = {k: v / total_w for k, v in weights.items()}
         target_price = sum(active[k] * weights[k] for k in active) if active else None
 
+    # Analyst-only when DCF/Comps were excluded as too low: use median of all signals.
+    suppressed_low = _suppressed_low_model_prices(methods, excluded, current)
+    if target_price and set(active.keys()) == {"Analyst"} and suppressed_low:
+        blend_vals = [active["Analyst"]] + suppressed_low
+        target_price = statistics.median(blend_vals)
+        weights = {}
+        used_median_fallback = True
+        analyst_reliable = False
+        excluded = dict(excluded)
+        excluded["Analyst"] = "Median with excluded low DCF/Comps (solo analyst not used)"
+
+    # Extreme upside on a single active method: anchor to median of all raw methods.
+    if (
+        target_price
+        and current > 0
+        and len(active) == 1
+        and not used_median_fallback
+        and len(methods) >= 2
+        and (target_price / current - 1) * 100 > EXTREME_UPSIDE_PCT
+    ):
+        target_price = statistics.median(list(methods.values()))
+        weights = {}
+        used_median_fallback = True
+
+    audit_triggered = False
+    audit_notes: list[str] = []
+    data_gaps: list[str] = []
+    if target_price and current and _needs_valuation_audit(target_price, current, methods):
+        audit_triggered = True
+        (
+            target_price, weights, excluded, used_median_fallback,
+            dcf_reliable, comps_reliable, analyst_reliable,
+            data_gaps, audit_notes,
+        ) = _apply_valuation_audit(
+            data, summary, comp_analysis, methods, active, excluded,
+            target_price, current, weights, used_median_fallback,
+        )
+
     if target_price and current:
         diff_pct = (target_price / current - 1) * 100
-        if diff_pct > 15:
-            rec = "BUY - Models suggest meaningful upside"
-        elif diff_pct > 5:
-            rec = "OVERWEIGHT - Modest upside to fair value"
-        elif diff_pct > -5:
-            rec = "HOLD - Fairly valued"
-        elif diff_pct > -15:
-            rec = "UNDERWEIGHT - Trading above model fair value"
-        else:
-            rec = "SELL - Significant downside vs models"
+        rec = _recommendation_from_upside(
+            diff_pct, active, current, used_median_fallback, audit_triggered,
+        )
+        if audit_triggered and data_gaps and abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT:
+            rec = "HOLD - Extreme move; incomplete inputs (see audit)"
     else:
         rec = "HOLD - Insufficient valuation data"
 
@@ -1288,6 +1540,9 @@ def build_valuation_summary(
         analyst_reliable=analyst_reliable,
         excluded_methods=excluded,
         blend_weights=weights,
+        valuation_audit_triggered=audit_triggered,
+        valuation_audit_notes=audit_notes,
+        data_gaps=data_gaps,
     )
 
 
@@ -1372,8 +1627,19 @@ def build_valuation_crosscheck_table(
         f"${valuation.target_price:.2f}" if valuation.target_price else "N/A",
         _upside_str(valuation.target_price, current),
         "100%",
-        " + ".join(f"{k} {v:.0%}" for k, v in valuation.blend_weights.items()) or "Comps only",
+        " + ".join(f"{k} {v:.0%}" for k, v in valuation.blend_weights.items()) or "Median / single method",
     ])
+    if valuation.valuation_audit_triggered:
+        audit_note = "; ".join(valuation.valuation_audit_notes) or "Triggered (|upside| ≥ 30%)"
+        if valuation.data_gaps:
+            audit_note += f" | Data gaps: {', '.join(valuation.data_gaps)}"
+        rows.append([
+            f"Audit (≥{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price)",
+            "—",
+            "—",
+            "—",
+            audit_note,
+        ])
     return rows
 
 
@@ -1738,9 +2004,6 @@ def _analyze_ticker(
         return None
     summary = build_financial_summary(data)
     industry = build_industry_research(data, summary)
-    if peer_tickers is None:
-        top_peers = fetch_top_us_market_cap(TOP_US_SUMMARY_COUNT)
-        peer_tickers = [p for p in top_peers if p != symbol][:4]
     competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
     valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
     return data, summary, industry, competitors, valuation
@@ -1791,9 +2054,6 @@ def process_ticker_report(
     else:
         summary = build_financial_summary(data)
         industry = build_industry_research(data, summary)
-        if peer_tickers is None:
-            top_peers = fetch_top_us_market_cap(TOP_US_SUMMARY_COUNT)
-            peer_tickers = [p for p in top_peers if p != data.ticker][:4]
         competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
         valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
 
@@ -1829,9 +2089,6 @@ def process_ticker_summary_only(
         data, summary, _, _, valuation = result
     else:
         summary = build_financial_summary(data)
-        if peer_tickers is None:
-            top_peers = fetch_top_us_market_cap(TOP_US_SUMMARY_COUNT)
-            peer_tickers = [p for p in top_peers if p != data.ticker][:4]
         competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
         valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
     row = _report_row_from_analysis(ticker.upper().strip(), summary, valuation)
