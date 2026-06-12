@@ -18,8 +18,12 @@ def _copy_reports(src_dir: Path, dst_dir: Path) -> None:
         s = src_dir / name
         if s.is_file():
             shutil.copy2(s, dst_dir / name)
+    src_pdfs = {p.name for p in src_dir.glob("*_research.pdf")}
     for pdf in sorted(src_dir.glob("*_research.pdf")):
         shutil.copy2(pdf, dst_dir / pdf.name)
+    for stale in dst_dir.glob("*_research.pdf"):
+        if stale.name not in src_pdfs:
+            stale.unlink()
 
 
 def main() -> None:
