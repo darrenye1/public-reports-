@@ -92,6 +92,22 @@ SECTOR_PEERS: dict[str, list[str]] = {
     "Consumer Defensive": ["PG", "KO", "PEP", "WMT", "COST"],
 }
 
+# Sector rules for valuation method applicability.
+FINANCIAL_SECTOR_NAMES = frozenset({"financial services", "financials"})
+FINANCIAL_INDUSTRY_KEYWORDS = (
+    "bank", "insurance", "capital markets", "asset management",
+    "financial conglomerate", "credit", "mortgage",
+)
+EV_EBITDA_EXCLUDE_KEYWORDS = FINANCIAL_INDUSTRY_KEYWORDS + (
+    "holding", "conglomerate", "reit", "diversified",
+)
+PS_EXCLUDE_KEYWORDS = (
+    "discount store", "grocery", "warehouse", "supermarket", "hypermarket",
+)
+COMPS_IMPLIED_PRICE_FLOOR_VS_CURRENT = 0.25
+COMPS_IMPLIED_PRICE_CAP_VS_CURRENT = 3.0
+MAX_PROJECTED_FCFE_GROWTH = 0.12
+
 NAVY = colors.HexColor("#1a365d")
 ACCENT = colors.HexColor("#2b6cb0")
 LIGHT_BG = colors.HexColor("#f7fafc")
@@ -502,10 +518,65 @@ def get_net_debt(balance_sheet: pd.DataFrame | None) -> float | None:
 
 
 def get_revenue(financials: pd.DataFrame | None, info: dict) -> float | None:
-    rev = _safe_series_value(financials, "Total Revenue")
+    """Prefer Yahoo TTM totalRevenue; fall back to latest fiscal statement."""
+    rev = get_info_value(info, "totalRevenue")
     if rev is None:
-        rev = get_info_value(info, "totalRevenue")
+        rev = _safe_series_value(financials, "Total Revenue")
     return float(rev) if rev is not None else None
+
+
+def _is_financial_sector(summary: FinancialSummary) -> bool:
+    """Banks, insurers, and conglomerates — not payment networks (V, MA)."""
+    industry = (summary.industry or "").lower()
+    dcf_skip_keywords = (
+        "bank", "insurance", "capital markets", "asset management",
+        "financial conglomerate", "mortgage", "diversified financial",
+    )
+    return any(k in industry for k in dcf_skip_keywords)
+
+
+def _use_ev_ebitda_comps(summary: FinancialSummary) -> bool:
+    if _is_financial_sector(summary):
+        return False
+    industry = (summary.industry or "").lower()
+    return not any(k in industry for k in EV_EBITDA_EXCLUDE_KEYWORDS)
+
+
+def _use_pe_comps(summary: FinancialSummary) -> bool:
+    return not _is_financial_sector(summary)
+
+
+def _use_ps_comps(summary: FinancialSummary) -> bool:
+    if _is_financial_sector(summary):
+        return False
+    sector = (summary.sector or "").lower()
+    if sector == "consumer defensive":
+        return False
+    industry = (summary.industry or "").lower()
+    return not any(k in industry for k in PS_EXCLUDE_KEYWORDS)
+
+
+def _comps_implied_price_sane(price: float | None, current: float | None) -> float | None:
+    if price is None or price != price or price <= 0:
+        return None
+    if current and current > 0:
+        ratio = price / current
+        if ratio < COMPS_IMPLIED_PRICE_FLOOR_VS_CURRENT or ratio > COMPS_IMPLIED_PRICE_CAP_VS_CURRENT:
+            return None
+    return price
+
+
+def _projected_fcfe_growth(
+    historical: list[float],
+    summary: FinancialSummary,
+    override: float | None = None,
+) -> float:
+    growth = override if override is not None else _fcfe_growth_rate(historical)
+    if summary.revenue_growth and summary.revenue_growth > 5:
+        rev_boost = min(summary.revenue_growth / 100 * 0.5, 0.10)
+        growth = max(growth, rev_boost)
+    growth = max(growth, DEFAULT_TERMINAL_GROWTH)
+    return float(min(max(growth, -0.03), MAX_PROJECTED_FCFE_GROWTH))
 
 
 def get_ebitda(financials: pd.DataFrame | None, info: dict) -> float | None:
@@ -581,10 +652,14 @@ def build_financial_summary(data: CompanyData) -> FinancialSummary:
     cf = data.cashflow
 
     rev_t = get_revenue(fin, info)
-    rev_t1 = _safe_series_value(fin, "Total Revenue", 1) if fin is not None else None
+    rev_growth_raw = get_info_value(info, "revenueGrowth")
     rev_growth = None
-    if rev_t and rev_t1 and rev_t1 != 0:
-        rev_growth = (rev_t - rev_t1) / abs(rev_t1) * 100
+    if rev_growth_raw is not None:
+        rev_growth = rev_growth_raw * 100 if abs(rev_growth_raw) <= 1 else float(rev_growth_raw)
+    else:
+        rev_t1 = _safe_series_value(fin, "Total Revenue", 1) if fin is not None else None
+        if rev_t and rev_t1 and rev_t1 != 0:
+            rev_growth = (rev_t - rev_t1) / abs(rev_t1) * 100
 
     low = get_info_value(info, "fiftyTwoWeekLow")
     high = get_info_value(info, "fiftyTwoWeekHigh")
@@ -767,10 +842,9 @@ def build_competitor_analysis(
         roe=summary.roe,
     )
 
-    all_peers = peers + [target_peer]
-    med_pe = _median([p.pe_ratio for p in all_peers])
-    med_ev = _median([p.ev_ebitda for p in all_peers])
-    med_margin = _median([p.profit_margin for p in all_peers])
+    med_pe = _median([p.pe_ratio for p in peers])
+    med_ev = _median([p.ev_ebitda for p in peers])
+    med_margin = _median([p.profit_margin for p in peers])
 
     position_parts: list[str] = []
     if summary.pe_ratio and med_pe:
@@ -883,8 +957,12 @@ def _simon_base_fcfe(data: CompanyData, summary: FinancialSummary | None = None)
         cf = data.cashflow
         if cf is None or cf.empty:
             return None
-        return _compute_fcfe_for_year(cf, data.balance_sheet, 0) or _standard_fcf_for_year(cf, 0)
-    return max(candidates)
+        fallback = _compute_fcfe_for_year(cf, data.balance_sheet, 0) or _standard_fcf_for_year(cf, 0)
+        return fallback if fallback and fallback > 0 else None
+    positive = [c for c in candidates if c and c > 0]
+    if not positive:
+        return None
+    return statistics.median(positive)
 
 
 def _fcfe_growth_rate(historical: list[float]) -> float:
@@ -925,7 +1003,7 @@ def run_dcf(
 ) -> DCFResult:
     """
     Simon valuation model (FCFE): discount projected FCFE at cost of equity,
-    terminal value = FCFE_n * (1+g) / (Ke-g), mid-year adjustment on equity value.
+    terminal value = FCFE_n * (1+g) / (Ke-g), mid-year convention on each cash flow.
     """
     info = data.info
     ke = _estimate_cost_of_equity(info, wacc)
@@ -933,13 +1011,24 @@ def run_dcf(
     tg = _terminal_growth_rate(info, terminal_growth)
     tg = min(tg, ke - 0.01)
 
+    if _is_financial_sector(summary):
+        return DCFResult(
+            fcf_base=None,
+            wacc=ke,
+            terminal_growth=tg,
+            projection_years=years,
+            fcf_growth=0.0,
+            enterprise_value=None,
+            equity_value=None,
+            implied_price=None,
+            current_price=summary.current_price,
+            upside_pct=None,
+            assumptions_note="DCF not applicable (financial sector — use comps/analyst)",
+        )
+
     historical = _historical_fcfe_series(data)
     base_fcfe = _simon_base_fcfe(data, summary)
-    growth = fcf_growth if fcf_growth is not None else _fcfe_growth_rate(historical)
-    rev_g = (summary.revenue_growth or 0) / 100
-    growth = max(min(growth, 0.15), rev_g * 0.65, DEFAULT_TERMINAL_GROWTH)
-    if summary.revenue_growth and summary.revenue_growth > 5:
-        growth = max(growth, min(summary.revenue_growth / 100 * 0.85, 0.12))
+    growth = _projected_fcfe_growth(historical, summary, fcf_growth)
 
     projected: list[float] = []
     pv_by_year: list[float] = []
@@ -951,19 +1040,19 @@ def run_dcf(
     terminal_fcfe_val = None
     shares = get_shares_outstanding(info)
 
-    if base_fcfe is not None and base_fcfe == base_fcfe and ke > tg:
+    if base_fcfe is not None and base_fcfe > 0 and base_fcfe == base_fcfe and ke > tg:
         fcfe = base_fcfe
         for _ in range(years):
             fcfe *= 1 + growth
             projected.append(fcfe)
 
         for t, f in enumerate(projected):
-            pv_by_year.append(f / (1 + ke) ** (t + 1))
+            pv_by_year.append(f / (1 + ke) ** (t + 0.5))
         pv_explicit = sum(pv_by_year)
         terminal_fcfe_val = projected[-1] * (1 + tg)
-        pv_terminal = (terminal_fcfe_val / (ke - tg)) / (1 + ke) ** years
+        pv_terminal = (terminal_fcfe_val / (ke - tg)) / (1 + ke) ** (years - 0.5)
         equity_value_raw = pv_explicit + pv_terminal
-        equity_value = equity_value_raw * (1 + ke / 2)
+        equity_value = equity_value_raw
 
         if shares and shares > 0:
             implied_price = equity_value / shares
@@ -1012,36 +1101,38 @@ def run_comps(
     revenue = get_revenue(data.financials, info)
     net_debt = get_net_debt(data.balance_sheet) or 0
 
-    implied_pe = med_pe * eps if med_pe and eps and eps > 0 else None
+    implied_pe = None
+    if _use_pe_comps(summary):
+        implied_pe = _comps_implied_price_sane(
+            med_pe * eps if med_pe and eps and eps > 0 else None,
+            current,
+        )
 
     implied_ev_ebitda = None
-    if med_ev_ebitda and ebitda and ebitda > 0 and shares and shares > 0:
+    if _use_ev_ebitda_comps(summary) and med_ev_ebitda and ebitda and ebitda > 0 and shares and shares > 0:
         implied_ev = med_ev_ebitda * ebitda
         implied_equity = implied_ev - net_debt
-        implied_ev_ebitda = implied_equity / shares
+        if implied_equity > 0:
+            implied_ev_ebitda = _comps_implied_price_sane(implied_equity / shares, current)
 
-    peer_ps_values = []
-    for p in comp_analysis.peers:
-        try:
-            pi = yf.Ticker(p.ticker).info or {}
-            ps = get_info_value(pi, "priceToSalesTrailing12Months")
-            if ps:
-                peer_ps_values.append(ps)
-        except Exception:
-            pass
     med_ps = None
-    if peer_ps_values:
-        peer_ps_values.sort()
-        n = len(peer_ps_values)
-        med_ps = peer_ps_values[n // 2]
-
     implied_ps = None
-    if med_ps and revenue and revenue > 0 and shares and shares > 0:
-        implied_equity = med_ps * revenue
-        implied_ps = implied_equity / shares
+    if _use_ps_comps(summary):
+        peer_ps_values = []
+        for p in comp_analysis.peers:
+            try:
+                pi = yf.Ticker(p.ticker).info or {}
+                ps = get_info_value(pi, "priceToSalesTrailing12Months")
+                if ps and ps > 0:
+                    peer_ps_values.append(ps)
+            except Exception:
+                pass
+        med_ps = _median(peer_ps_values)
+        if med_ps and revenue and revenue > 0 and shares and shares > 0:
+            implied_ps = _comps_implied_price_sane((med_ps * revenue) / shares, current)
 
     prices = [p for p in (implied_pe, implied_ev_ebitda, implied_ps) if p and p > 0]
-    blended = sum(prices) / len(prices) if prices else None
+    blended = statistics.median(prices) if prices else None
 
     upside = None
     if blended and current and current > 0:
@@ -1674,8 +1765,8 @@ def _report_row_from_analysis(
         revenue_growth=summary.revenue_growth,
         operating_margin=summary.operating_margin,
         roe=summary.roe,
-        dcf_fair_value=valuation.dcf.implied_price,
-        comps_fair_value=valuation.comps.blended_fair_value,
+        dcf_fair_value=valuation.dcf_target,
+        comps_fair_value=valuation.comps_target,
         target_price=valuation.target_price,
         upside_pct=upside,
         rating=recommendation_short(valuation),
@@ -2018,10 +2109,10 @@ def build_dcf_detail_table(dcf: DCFResult) -> list[list[str]]:
         return rows
 
     rows.append(["", ""])
-    rows.append(["Year", "Projected FCFE", "Discount factor 1/(1+Ke)^t", "Present value"])
+    rows.append(["Year", "Projected FCFE", "Discount factor 1/(1+Ke)^(t-0.5)", "Present value"])
     ke = dcf.wacc
     for t, (fcfe, pv) in enumerate(zip(dcf.projected_fcfe, dcf.pv_by_year), start=1):
-        df = 1 / (1 + ke) ** t
+        df = 1 / (1 + ke) ** (t - 0.5)
         rows.append([f"Year {t}", format_large_number(fcfe), f"{df:.4f}", format_large_number(pv)])
 
     rows.extend([
@@ -2041,10 +2132,8 @@ def build_dcf_detail_table(dcf: DCFResult) -> list[list[str]]:
             f"= FCFE / (Ke-g)",
             "",
         ],
-        ["PV of terminal value", "", f"/ (1+Ke)^{dcf.projection_years}", format_large_number(dcf.pv_terminal)],
-        ["Equity value (pre mid-year adj.)", format_large_number(dcf.equity_value_raw), "= PV explicit + PV terminal", ""],
-        ["Mid-year convention adjustment", f"x (1 + Ke/2) = x {1 + ke / 2:.4f}", "", ""],
-        ["Equity value (adjusted)", format_large_number(dcf.equity_value), "", ""],
+        ["PV of terminal value", "", f"/ (1+Ke)^({dcf.projection_years - 0.5:.1f})", format_large_number(dcf.pv_terminal)],
+        ["Equity value", format_large_number(dcf.equity_value), "= PV explicit + PV terminal", ""],
         ["Shares outstanding", f"{dcf.shares_used / 1e6:.2f}M" if dcf.shares_used else "N/A", "", ""],
         ["Implied price per share", f"${dcf.implied_price:.2f}" if dcf.implied_price else "N/A", "", ""],
     ])

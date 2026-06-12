@@ -40,7 +40,7 @@
       backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
     }
     .nav-inner{
-      max-width:920px;margin:0 auto;padding:12px 20px;
+      max-width:1320px;margin:0 auto;padding:12px 24px;
       display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
     }
     .nav-brand{font-family:var(--serif);font-size:var(--text-sm);font-weight:600}
@@ -50,12 +50,12 @@
       color:var(--muted);font-weight:500;
     }
     .nav-links a:hover{color:var(--text);background:#f5f5f4;text-decoration:none}
-    .wrap{max-width:920px;margin:0 auto;padding:36px 20px 56px}
+    .wrap{max-width:1320px;margin:0 auto;padding:36px 24px 56px}
     .eyebrow{
       font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
       color:var(--accent);margin-bottom:12px;
     }
-    .lead{font-size:var(--text-base);color:var(--muted);max-width:62ch}
+    .lead{font-size:var(--text-base);color:var(--muted);max-width:72ch;line-height:1.7}
     .meta{font-size:var(--text-xs);color:var(--muted);margin-top:10px}
     .hero{
       display:grid;grid-template-columns:1fr auto;gap:32px;align-items:start;
@@ -130,9 +130,9 @@
       background:var(--card);font-size:var(--text-sm);min-width:200px;
     }
     .status{font-size:var(--text-xs);color:var(--muted);padding:5px 10px;border:1px solid var(--border);border-radius:999px}
-    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;max-height:65vh}
-    table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--card)}
-    th,td{padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
+    .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+    table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--card);min-width:1100px}
+    th,td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
     th{
       background:#f5f5f4;color:var(--muted);font-weight:600;font-size:11px;
       text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;cursor:pointer;
@@ -142,7 +142,7 @@
     tr.clickable{cursor:pointer}
     tr.clickable:hover td{background:#fafaf9}
     tr:hover td{background:#fafaf9}
-    td.company{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+    td.company{max-width:200px;overflow:hidden;text-overflow:ellipsis}
     td.num{font-variant-numeric:tabular-nums}
     .up-good{color:var(--good)} .up-bad{color:var(--bad)} .up-warn{color:var(--warn)}
     .badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;display:inline-block}
@@ -195,8 +195,8 @@
         <h1>Darren Ye</h1>
         <p class="hero-role">MSF &amp; MMA (Expected Aug 2026) · Toronto / Waterloo, ON</p>
         <p class="lead">
-          Data and financial analyst with experience across Amazon, TCL, and Guangfa Bank.
-          Focused on forecasting, valuation, and building tools that turn market data into decisions.
+          Results-driven Senior Analyst bridging the intersection of Finance and Analytics across Technology &amp; Banking.
+          Expert in scaling predictive models, private asset valuation, and deploying technical tools that drive C-suite decisions.
         </p>
         <div class="pill-row">
           <span class="pill">Python</span><span class="pill">SQL</span>
