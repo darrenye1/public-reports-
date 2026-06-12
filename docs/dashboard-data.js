@@ -1,5 +1,5 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:27:15Z",
+  "generated_at": "2026-06-12T21:35:26Z",
   "data_as_of": "2026-06-12",
   "news": [
     {
