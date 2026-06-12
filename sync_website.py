@@ -8,6 +8,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from dashboard_data import build_dashboard_payload
+
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "reports"
 PUBLIC = ROOT / "public"
@@ -41,10 +43,13 @@ def main() -> None:
         + ";\n"
     )
 
+    dashboard_js = "window.DASHBOARD_DATA = " + json.dumps(build_dashboard_payload(), ensure_ascii=False, indent=2) + ";\n"
+
     for web_root in (PUBLIC, DOCS):
         web_root.mkdir(parents=True, exist_ok=True)
         _copy_reports(SRC, web_root / "reports")
         (web_root / "summary-data.js").write_text(js, encoding="utf-8")
+        (web_root / "dashboard-data.js").write_text(dashboard_js, encoding="utf-8")
         index_src = PUBLIC / "index.html"
         if index_src.is_file() and web_root != PUBLIC:
             shutil.copy2(index_src, web_root / "index.html")
@@ -57,7 +62,7 @@ def main() -> None:
                     pass
 
     print("Synced to public/ and docs/")
-    print(f"Wrote {len(rows)} rows, DATA_AS_OF={as_of}")
+    print(f"Wrote {len(rows)} rows, DATA_AS_OF={as_of}, dashboard news/indices/spacex")
 
 
 if __name__ == "__main__":

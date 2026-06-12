@@ -262,8 +262,50 @@
     }
     .hint{font-size:var(--text-xs);color:var(--warn);margin-top:8px}
     ::selection{background:rgba(34,211,238,.25);color:#fff}
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+    @media(max-width:900px){.dash-grid{grid-template-columns:1fr}}
+    .index-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+    @media(max-width:900px){.index-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.index-grid{grid-template-columns:1fr}}
+    .index-card{
+      padding:14px;border:1px solid var(--border-soft);border-radius:10px;
+      background:var(--bg-elevated);position:relative;overflow:hidden;
+    }
+    .index-card::after{
+      content:"";position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(180deg,transparent 60%,rgba(3,3,8,.5));
+    }
+    .index-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;position:relative;z-index:1}
+    .index-label{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+    .index-last{font-family:var(--mono);font-size:1rem;font-weight:600;color:var(--text)}
+    .index-chg{font-family:var(--mono);font-size:11px;margin-top:2px}
+    .index-chg.up{color:var(--good)} .index-chg.down{color:var(--bad)}
+    .index-chart{width:100%;height:56px;display:block;position:relative;z-index:0}
+    .news-list{list-style:none;margin:14px 0 0;padding:0}
+    .news-item{
+      padding:14px 0;border-bottom:1px solid var(--border-soft);
+    }
+    .news-item:last-child{border-bottom:none;padding-bottom:0}
+    .news-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+    .news-title{font-size:var(--text-sm);font-weight:600;line-height:1.45;margin-bottom:4px}
+    .news-title a{color:var(--text)}
+    .news-title a:hover{color:var(--accent)}
+    .news-sum{font-size:var(--text-xs);color:var(--muted);line-height:1.5}
+    .spacex-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;margin-top:16px}
+    @media(max-width:800px){.spacex-grid{grid-template-columns:1fr}}
+    .metric-table{width:100%;border-collapse:collapse;font-size:var(--text-xs)}
+    .metric-table th,.metric-table td{padding:8px 10px;border-bottom:1px solid var(--border-soft);text-align:left}
+    .metric-table th{font-family:var(--mono);color:var(--accent);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+    .metric-table td.num{font-family:var(--mono);color:var(--text)}
+    .spacex-note{font-size:var(--text-xs);color:var(--muted);margin-top:10px;line-height:1.5}
+    .val-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+    @media(max-width:600px){.val-row{grid-template-columns:1fr}}
+    .val-box{padding:12px;border:1px solid var(--border-soft);border-radius:8px;background:rgba(8,10,18,.5)}
+    .val-box .lbl{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .val-box .val{font-family:var(--mono);font-size:1.1rem;color:var(--accent);margin-top:4px}
   </style>
   <script src="summary-data.js"></script>
+  <script src="dashboard-data.js"></script>
   <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -276,6 +318,8 @@
         <a href="#about">About</a>
         <a href="#project">Project</a>
         <a href="#research">Dashboard</a>
+        <a href="#markets">Markets</a>
+        <a href="#spacex">SpaceX</a>
         <a href="#top20">Top 20</a>
         <a href="#resume">Resume</a>
       </div>
@@ -355,6 +399,27 @@
           <p>Auto-generate 2-page PDF reports, Excel valuation workbooks, and sync this site.</p>
         </div>
       </div>
+
+      <div id="markets" style="margin-top:28px">
+        <h3>Major Market Indices · 6M</h3>
+        <p class="meta" id="indexAsOf">Loading index data...</p>
+        <div id="indexCharts" class="index-grid"></div>
+      </div>
+
+      <div class="dash-grid" style="margin-top:28px">
+        <div id="macro-news">
+          <h3>Macro Headlines · Past 7 Days</h3>
+          <p class="meta">US market &amp; macro stories filtered from Yahoo Finance (SPY, indices, VIX, rates).</p>
+          <ul id="newsList" class="news-list"></ul>
+        </div>
+        <div id="spacex" class="card" style="margin-top:0;padding:20px">
+          <p class="eyebrow" style="margin-bottom:8px">Private / Public Crossover</p>
+          <h3 style="margin:0">SpaceX · SPCX</h3>
+          <p class="meta" id="spacexMeta">Loading...</p>
+          <div id="spacexBody"></div>
+        </div>
+      </div>
+
       <div class="dl-row">
         <a class="dl-btn" href="reports/Top20_Summary.pdf" target="_blank" rel="noreferrer">Top 20 Summary PDF</a>
         <a class="dl-btn outline" href="reports/Top20_Summary.csv" target="_blank" rel="noreferrer">Download CSV</a>
@@ -571,6 +636,96 @@
         tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
       });
     }
+    function fmtBig(n) {
+      if (n === "" || n == null || isNaN(+n)) return "N/A";
+      const x = +n;
+      if (x >= 1e12) return "$" + (x / 1e12).toFixed(2) + "T";
+      if (x >= 1e9) return "$" + (x / 1e9).toFixed(1) + "B";
+      return "$" + x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    function sparklineSvg(series, up) {
+      if (!series || series.length < 2) return "";
+      const w = 280, h = 56, pad = 2;
+      const min = Math.min.apply(null, series), max = Math.max.apply(null, series);
+      const span = max - min || 1;
+      const pts = series.map(function(v, i) {
+        const x = pad + (i / (series.length - 1)) * (w - pad * 2);
+        const y = pad + (1 - (v - min) / span) * (h - pad * 2);
+        return x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
+      const stroke = up ? "#34d399" : "#f87171";
+      return "<svg class=\"index-chart\" viewBox=\"0 0 " + w + " " + h + "\" preserveAspectRatio=\"none\" aria-hidden=\"true\">"
+        + "<polyline fill=\"none\" stroke=\"" + stroke + "\" stroke-width=\"1.5\" opacity=\".85\" points=\"" + pts + "\"/></svg>";
+    }
+    function renderIndices(data) {
+      const el = document.getElementById("indexCharts");
+      const asOf = document.getElementById("indexAsOf");
+      if (!el || !data || !data.indices) return;
+      if (asOf) asOf.textContent = "Normalized to 100 at period start · " + (data.data_as_of || "");
+      el.innerHTML = data.indices.map(function(idx) {
+        const up = (idx.change_pct || 0) >= 0;
+        const cls = up ? "up" : "down";
+        const sign = up ? "+" : "";
+        return "<div class=\"index-card\"><div class=\"index-head\"><div><div class=\"index-label\">" + idx.label + "</div>"
+          + "<div class=\"index-last\">" + idx.last.toLocaleString() + "</div>"
+          + "<div class=\"index-chg " + cls + "\">" + sign + idx.change_pct.toFixed(2) + "% · 6M</div></div></div>"
+          + sparklineSvg(idx.series, up) + "</div>";
+      }).join("");
+    }
+    function renderNews(data) {
+      const el = document.getElementById("newsList");
+      if (!el || !data || !data.news) return;
+      if (!data.news.length) {
+        el.innerHTML = "<li class=\"news-item\"><p class=\"news-sum\">No headlines available. Run sync_website.py to refresh.</p></li>";
+        return;
+      }
+      el.innerHTML = data.news.map(function(n) {
+        const title = n.url ? "<a href=\"" + n.url + "\" target=\"_blank\" rel=\"noreferrer\">" + n.title + "</a>" : n.title;
+        return "<li class=\"news-item\"><div class=\"news-meta\">" + (n.published_display || "") + " · " + (n.source || "") + "</div>"
+          + "<div class=\"news-title\">" + title + "</div>"
+          + (n.summary ? "<div class=\"news-sum\">" + n.summary + "</div>" : "") + "</li>";
+      }).join("");
+    }
+    function renderSpaceX(data) {
+      const meta = document.getElementById("spacexMeta");
+      const body = document.getElementById("spacexBody");
+      const sx = data && data.spacex;
+      if (!body || !sx) return;
+      if (meta) {
+        meta.textContent = (sx.company || "SpaceX") + " · Yahoo: " + (sx.ticker || "SPCX")
+          + (sx.price ? " · $" + (+sx.price).toFixed(2) : "");
+      }
+      let html = "";
+      if (sx.has_valuation && sx.target_price) {
+        html += "<div class=\"val-row\">"
+          + "<div class=\"val-box\"><div class=\"lbl\">Model Target</div><div class=\"val\">" + fmtMoney(sx.target_price) + "</div></div>"
+          + "<div class=\"val-box\"><div class=\"lbl\">Rating</div><div class=\"val\">" + (sx.recommendation || "N/A") + "</div></div>"
+          + "<div class=\"val-box\"><div class=\"lbl\">Upside</div><div class=\"val\">" + (sx.upside_pct != null ? (sx.upside_pct > 0 ? "+" : "") + (+sx.upside_pct).toFixed(1) + "%" : "N/A") + "</div></div>"
+          + "</div>";
+      } else {
+        html += "<p class=\"spacex-note\">Full DCF/comps less reliable for recent IPO / heavy R&amp;D profile — key S-1 metrics below.</p>";
+      }
+      html += "<div class=\"spacex-grid\"><div><table class=\"metric-table\"><tbody>"
+        + (sx.market_cap ? "<tr><th>Mkt Cap (Yahoo)</th><td class=\"num\">" + fmtBig(sx.market_cap) + "</td></tr>" : "")
+        + (sx.pe_ratio ? "<tr><th>P/E (TTM)</th><td class=\"num\">" + (+sx.pe_ratio).toFixed(1) + "x</td></tr>" : "")
+        + (sx.revenue_growth_pct != null ? "<tr><th>Rev Growth</th><td class=\"num\">" + (+sx.revenue_growth_pct).toFixed(1) + "%</td></tr>" : "")
+        + (sx.analyst_target ? "<tr><th>Analyst Target</th><td class=\"num\">" + fmtMoney(sx.analyst_target) + "</td></tr>" : "")
+        + "</tbody></table></div><div><table class=\"metric-table\"><tbody>"
+        + (sx.key_metrics || []).map(function(m) {
+          return "<tr><th>" + m.label + "</th><td class=\"num\">" + m.value + " <span style=\"color:var(--muted)\">" + (m.detail || "") + "</span></td></tr>";
+        }).join("")
+        + "</tbody></table></div></div>";
+      html += "<p class=\"spacex-note\">" + (sx.note || "") + "</p>";
+      body.innerHTML = html;
+    }
+    function renderDashboard() {
+      const data = window.DASHBOARD_DATA;
+      if (!data) return;
+      renderIndices(data);
+      renderNews(data);
+      renderSpaceX(data);
+    }
+
     function setDataAsOf() {
       const d = window.DATA_AS_OF || new Date().toISOString().slice(0, 10);
       document.getElementById("dataAsOfLine").textContent =
@@ -609,6 +764,7 @@
     }
     document.getElementById("searchBox").oninput = applySearch;
     document.getElementById("reloadBtn").onclick = function() { loadSummary().catch(console.error); };
+    renderDashboard();
     loadSummary().catch(console.error);
   </script>
 </body>
