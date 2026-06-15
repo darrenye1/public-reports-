@@ -1,13 +1,40 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-12T21:40:11Z",
-  "data_as_of": "2026-06-12",
+  "generated_at": "2026-06-15T18:24:32Z",
+  "data_as_of": "2026-06-15",
   "news": [
     {
-      "title": "Indexes Settle Higher as SpaceX Soars in Trading Debut",
-      "url": "https://finance.yahoo.com/markets/stocks/articles/stock-futures-investors-await-historic-104400409.html",
-      "source": "The Wall Street Journal",
-      "summary": "It wasn’t all SpaceX in markets today. A big gain in financial stocks boosted the Dow Jones Industrial Average. The blue-chip index added 0.7%. The S 500 rose 0.5%. The tech-heavy Nasdaq advanced about 0.3%.",
-      "published": "2026-06-12T20:55:00+00:00",
+      "title": "Treasury Yields, Dollar Decline as U.S.-Iran Deal Materializes",
+      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-061526/card/dollar-up-as-markets-focus-on-potential-pitfalls-in-u-s-iran-deal-BM150CcE3XDZx82GHGoT?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "Treasury yields and the dollar slip as President Trump and Iran agree to sign a peace deal later this week while markets brace for the first Fed meeting under Chairman Warsh. The U.S.-Iran pact is expected to restore normal oil trade through the Strait of Hormuz.",
+      "published": "2026-06-15T15:35:56+00:00",
+      "published_display": "Jun 15, 2026",
+      "day": "2026-06-15"
+    },
+    {
+      "title": "Nasdaq, S&P 500, Dow Futures Climb While Oil Slides As US-Iran Deal Signals End To Hormuz Disruption: DJT, NFLX, GLXY, SPCX In Focus",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/nasdaq-p-500-dow-futures-011738861.html",
+      "source": "Stocktwits",
+      "summary": "The U.S. and Iran have reached a peace agreement to end the war, with the final signing expected to be on June 19 in Switzerland.",
+      "published": "2026-06-15T01:17:38+00:00",
+      "published_display": "Jun 15, 2026",
+      "day": "2026-06-14"
+    },
+    {
+      "title": "SpaceX goes public, inflation jumps to over 3-year highs",
+      "url": "https://finance.yahoo.com/economy/policy/articles/spacex-goes-public-inflation-jumps-110138907.html",
+      "source": "Detroit Free Press",
+      "summary": "Stocks clawed back losses by the end of the week, putting the S&P 500 on track for a positive week as a U.S.–Iran deal moved within reach.",
+      "published": "2026-06-13T11:01:38+00:00",
+      "published_display": "Jun 13, 2026",
+      "day": "2026-06-13"
+    },
+    {
+      "title": "Stocks Rally on Hopes for a Near-term US-Iran Interim Peace Agreement",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/stocks-rally-hopes-near-term-203953174.html",
+      "source": "Barchart",
+      "summary": "The S&P 500 Index ($SPX ) (SPY ) on Friday rose +0.50%, the Dow Jones Industrial Average ($DOWI ) (DIA ) rose +0.70%, and the Nasdaq 100 Index ($IUXX ) (QQQ ) rose +0.64%. June E-mini S&P futures (ESM26 ) rose +0.65%, and June E-mini Nasdaq futures (NQM26 ) rose...",
+      "published": "2026-06-12T20:39:53+00:00",
       "published_display": "Jun 12, 2026",
       "day": "2026-06-12"
     },
@@ -37,43 +64,15 @@ window.DASHBOARD_DATA = {
       "published": "2026-06-09T12:21:00+00:00",
       "published_display": "Jun 09, 2026",
       "day": "2026-06-09"
-    },
-    {
-      "title": "Market Fear Index Slides as Investors Pile Back Into Tech Stocks",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-060826/card/market-fear-index-slides-as-investors-pile-back-into-tech-stocks-lMyiHu0LDahwtFCIDX6G?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "Investors were feeling a bit calmer as they bought the dip in tech stocks following Friday's brutal AI selloff. The Cboe Volatility Index, a widely followed fear gauge that trades under the ticker VIX, dropped about 2 points to 19.",
-      "published": "2026-06-08T11:06:17+00:00",
-      "published_display": "Jun 08, 2026",
-      "day": "2026-06-08"
-    },
-    {
-      "title": "If You Hold This 20 Year Treasury ETF You Are Losing Money Even With Yields Up",
-      "url": "https://finance.yahoo.com/markets/options/articles/hold-20-treasury-etf-losing-142141990.html",
-      "source": "24/7 Wall St.",
-      "summary": "A 68-year-old retiree who moved $180,000 out of stocks and into the iShares 20+ Year Treasury Bond ETF (NASDAQ:TLT) in late 2024 was making a directional rate bet. The pitch was clean: lock in a 4.5% long-bond yield before the Federal Reserve cut rates, then collect price appreci",
-      "published": "2026-06-07T14:21:41+00:00",
-      "published_display": "Jun 07, 2026",
-      "day": "2026-06-07"
-    },
-    {
-      "title": "Top Wall Street Strategist: AI ‘Reality Check’ Is Coming as Bond Market Flashes Warning Signs",
-      "url": "https://finance.yahoo.com/markets/stocks/articles/top-wall-street-strategist-ai-115615116.html",
-      "source": "24/7 Wall St.",
-      "summary": "The market is on its longest winning streak since 1985, AI enthusiasm is running at levels one strategist calls “unbelievable,” and the IPO window has cracked open wide. Into that backdrop, Robert Teeter, Chief Investment Strategist at Silvercrest Asset Management, walked onto CN",
-      "published": "2026-06-06T11:56:15+00:00",
-      "published_display": "Jun 06, 2026",
-      "day": "2026-06-06"
     }
   ],
   "indices": [
     {
       "symbol": "^GSPC",
       "label": "S&P 500",
-      "last": 7431.46,
-      "change_pct": 9.02,
+      "last": 7562.07,
+      "change_pct": 10.94,
       "dates": [
-        "2026-03-19",
         "2026-03-20",
         "2026-03-23",
         "2026-03-24",
@@ -132,10 +131,10 @@ window.DASHBOARD_DATA = {
         "2026-06-09",
         "2026-06-10",
         "2026-06-11",
-        "2026-06-12"
+        "2026-06-12",
+        "2026-06-15"
       ],
       "series": [
-        96.92,
         95.45,
         96.55,
         96.18,
@@ -194,16 +193,16 @@ window.DASHBOARD_DATA = {
         108.36,
         106.61,
         108.48,
-        109.02
+        109.02,
+        110.94
       ]
     },
     {
       "symbol": "^DJI",
       "label": "Dow Jones",
-      "last": 51202.26,
-      "change_pct": 5.75,
+      "last": 51826.29,
+      "change_pct": 7.04,
       "dates": [
-        "2026-03-19",
         "2026-03-20",
         "2026-03-23",
         "2026-03-24",
@@ -262,10 +261,10 @@ window.DASHBOARD_DATA = {
         "2026-06-09",
         "2026-06-10",
         "2026-06-11",
-        "2026-06-12"
+        "2026-06-12",
+        "2026-06-15"
       ],
       "series": [
-        95.05,
         94.14,
         95.44,
         95.27,
@@ -324,16 +323,16 @@ window.DASHBOARD_DATA = {
         105.07,
         103.1,
         105.02,
-        105.75
+        105.75,
+        107.04
       ]
     },
     {
       "symbol": "^IXIC",
       "label": "Nasdaq Composite",
-      "last": 25888.84,
-      "change_pct": 12.28,
+      "last": 26660.4,
+      "change_pct": 15.63,
       "dates": [
-        "2026-03-19",
         "2026-03-20",
         "2026-03-23",
         "2026-03-24",
@@ -392,10 +391,10 @@ window.DASHBOARD_DATA = {
         "2026-06-09",
         "2026-06-10",
         "2026-06-11",
-        "2026-06-12"
+        "2026-06-12",
+        "2026-06-15"
       ],
       "series": [
-        95.81,
         93.89,
         95.18,
         94.38,
@@ -454,16 +453,16 @@ window.DASHBOARD_DATA = {
         111.37,
         109.16,
         111.94,
-        112.28
+        112.28,
+        115.63
       ]
     },
     {
       "symbol": "^RUT",
       "label": "Russell 2000",
-      "last": 2943.99,
-      "change_pct": 16.33,
+      "last": 2971.67,
+      "change_pct": 17.43,
       "dates": [
-        "2026-03-19",
         "2026-03-20",
         "2026-03-23",
         "2026-03-24",
@@ -522,10 +521,10 @@ window.DASHBOARD_DATA = {
         "2026-06-09",
         "2026-06-10",
         "2026-06-11",
-        "2026-06-12"
+        "2026-06-12",
+        "2026-06-15"
       ],
       "series": [
-        98.58,
         96.36,
         98.56,
         99.0,
@@ -584,7 +583,8 @@ window.DASHBOARD_DATA = {
         113.29,
         112.04,
         115.43,
-        116.33
+        116.33,
+        117.43
       ]
     }
   ]
