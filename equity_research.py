@@ -85,7 +85,7 @@ STALE_MAX_AGE_DAYS = 7
 
 SECTOR_PEERS: dict[str, list[str]] = {
     "Technology": ["MSFT", "GOOGL", "META", "NVDA", "ORCL", "CRM", "ADBE"],
-    "Consumer Cyclical": ["AMZN", "TSLA", "HD", "NKE", "SBUX", "MCD"],
+    "Consumer Cyclical": ["HD", "NKE", "SBUX", "MCD", "LOW", "TJX"],
     "Auto Manufacturers": ["F", "GM", "RIVN", "TM", "HMC", "STLA", "LI", "NIO"],
     "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY"],
     "Financial Services": ["JPM", "BAC", "WFC", "GS", "MS", "BLK"],
@@ -95,6 +95,52 @@ SECTOR_PEERS: dict[str, list[str]] = {
     "Energy": ["XOM", "CVX", "COP", "SLB", "EOG"],
     "Consumer Defensive": ["PG", "KO", "PEP", "WMT", "COST"],
 }
+
+# Industry-specific peers (Yahoo Finance industry strings) — preferred over broad sector buckets.
+INDUSTRY_PEERS: dict[str, list[str]] = {
+    "Internet Retail": ["WMT", "COST", "TGT", "EBAY", "HD", "SHOP"],
+    "Semiconductors": ["AMD", "INTC", "QCOM", "AVGO", "TXN", "MU"],
+    "Software - Infrastructure": ["MSFT", "ORCL", "CRM", "NOW", "IBM", "ADBE"],
+    "Software - Application": ["MSFT", "ORCL", "CRM", "ADBE", "INTU", "NOW"],
+    "Consumer Electronics": ["MSFT", "GOOGL", "HPQ", "DELL", "SONY", "QCOM"],
+    "Internet Content & Information": ["GOOGL", "META", "NFLX", "DIS", "SNAP", "PINS"],
+    "Auto Manufacturers": ["F", "GM", "RIVN", "TM", "STLA", "HMC"],
+    "Insurance - Diversified": ["PGR", "TRV", "ALL", "CB", "AIG", "MET"],
+    "Drug Manufacturers - General": ["MRK", "ABBV", "PFE", "JNJ", "BMY", "GILD"],
+    "Discount Stores": ["COST", "TGT", "DG", "DLTR", "WMT", "BJ"],
+    "Banks - Diversified": ["BAC", "WFC", "C", "USB", "PNC", "TFC"],
+    "Credit Services": ["MA", "AXP", "PYPL", "COF", "DFS", "SYF"],
+    "Oil & Gas Integrated": ["CVX", "COP", "BP", "SHEL", "TTE", "EOG"],
+    "Communication Equipment": ["CSCO", "ANET", "MSI", "JNPR", "CIEN", "NTGR"],
+    "Semiconductor Equipment & Materials": ["LRCX", "KLAC", "AMAT", "TER", "ENTG", "ONTO"],
+    "Aerospace & Defense": ["BA", "LMT", "RTX", "NOC", "GD", "HWM"],
+}
+
+# Substring rules on Yahoo industry (lowercase) when no exact INDUSTRY_PEERS hit.
+INDUSTRY_PEER_KEYWORDS: list[tuple[tuple[str, ...], list[str]]] = [
+    (("semiconductor",), ["AMD", "INTC", "QCOM", "AVGO", "TXN", "MU"]),
+    (("software",), ["MSFT", "ORCL", "CRM", "ADBE", "NOW", "INTU"]),
+    (("internet retail", "e-commerce", "catalog & mail"), ["WMT", "COST", "TGT", "EBAY", "HD"]),
+    (("auto manufactur",), ["F", "GM", "RIVN", "TM", "STLA"]),
+    (("insurance",), ["PGR", "TRV", "ALL", "CB", "MET", "AIG"]),
+    (("drug manufacturer", "pharmaceutical"), ["MRK", "ABBV", "PFE", "JNJ", "BMY", "LLY"]),
+    (("discount store", "grocery", "department store"), ["COST", "TGT", "DG", "DLTR", "WMT"]),
+    (("bank",), ["BAC", "WFC", "C", "USB", "PNC", "JPM"]),
+    (("credit", "payment", "transaction"), ["MA", "AXP", "PYPL", "V", "DFS"]),
+    (("oil & gas", "oil and gas"), ["CVX", "COP", "EOG", "SLB", "OXY"]),
+    (("aerospace", "defense"), ["BA", "LMT", "RTX", "NOC", "GD"]),
+    (("internet content", "social media"), ["GOOGL", "META", "NFLX", "SNAP", "PINS"]),
+    (("consumer electronics",), ["AAPL", "HPQ", "DELL", "SONY", "LOGI"]),
+    (("communication equipment", "networking"), ["CSCO", "ANET", "MSI", "JNPR", "CIEN"]),
+    (("semiconductor equipment", "wafer"), ["LRCX", "KLAC", "AMAT", "TER", "ENTG"]),
+]
+
+# Broad sector buckets skipped when Yahoo industry is known (avoids AMZN vs TSLA style mismatches).
+_BROAD_SECTOR_ONLY = frozenset({
+    "technology", "consumer cyclical", "consumer defensive",
+    "financial services", "communication services", "healthcare",
+    "industrials", "energy",
+})
 
 # Sector rules for valuation method applicability.
 FINANCIAL_SECTOR_NAMES = frozenset({"financial services", "financials"})
@@ -615,25 +661,55 @@ def get_current_price(info: dict, history: pd.DataFrame | None = None) -> float 
 
 
 def discover_sector_peers(ticker: str, sector: str | None, industry: str | None, max_peers: int = 5) -> list[str]:
+    """
+    Peer tickers for comps / competitor table.
+    Priority: exact industry map -> industry keyword rules -> legacy maps -> sector (only if industry unknown).
+    """
     symbol = ticker.upper()
-    candidates: list[str] = []
-    if industry and industry in SECTOR_PEERS:
-        candidates = [p for p in SECTOR_PEERS[industry] if p != symbol]
-    elif industry:
-        for key, peers in SECTOR_PEERS.items():
-            if key.lower() in industry.lower() or industry.lower() in key.lower():
-                candidates = [p for p in peers if p != symbol]
+    industry_key = (industry or "").strip()
+    industry_l = industry_key.lower()
+    has_specific_industry = bool(industry_key and industry_key.upper() != "N/A")
+
+    def _take(peer_list: list[str]) -> list[str]:
+        out: list[str] = []
+        for p in peer_list:
+            p = p.upper()
+            if p != symbol and p not in out:
+                out.append(p)
+            if len(out) >= max_peers:
                 break
-    if not candidates and sector and sector in SECTOR_PEERS:
-        candidates = [p for p in SECTOR_PEERS[sector] if p != symbol]
-    elif not candidates and sector:
+        return out
+
+    if industry_key in INDUSTRY_PEERS:
+        return _take(INDUSTRY_PEERS[industry_key])
+
+    for keywords, peer_list in INDUSTRY_PEER_KEYWORDS:
+        if any(kw in industry_l for kw in keywords):
+            return _take(peer_list)
+
+    if industry_key in SECTOR_PEERS:
+        return _take(SECTOR_PEERS[industry_key])
+
+    if industry_l:
         for key, peers in SECTOR_PEERS.items():
-            if sector.lower() in key.lower() or key.lower() in sector.lower():
-                candidates = [p for p in peers if p != symbol]
-                break
-    if not candidates:
-        candidates = ["SPY"]
-    return candidates[:max_peers]
+            kl = key.lower()
+            if kl in industry_l or industry_l in kl:
+                return _take(peers)
+
+    sector_key = (sector or "").strip()
+    sector_l = sector_key.lower()
+    use_sector_fallback = not has_specific_industry or sector_l not in _BROAD_SECTOR_ONLY
+
+    if use_sector_fallback and sector_key in SECTOR_PEERS:
+        return _take(SECTOR_PEERS[sector_key])
+
+    if use_sector_fallback and sector_l:
+        for key, peers in SECTOR_PEERS.items():
+            kl = key.lower()
+            if kl in sector_l or sector_l in kl:
+                return _take(peers)
+
+    return ["SPY"][:max_peers]
 
 
 def format_large_number(value: float | None, prefix: str = "$") -> str:
