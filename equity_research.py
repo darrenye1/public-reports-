@@ -157,6 +157,43 @@ PS_EXCLUDE_KEYWORDS = (
 COMPS_IMPLIED_PRICE_FLOOR_VS_CURRENT = 0.25
 COMPS_IMPLIED_PRICE_CAP_VS_CURRENT = 3.0
 MAX_PROJECTED_FCFE_GROWTH = 0.12
+HIGH_GROWTH_REV_THRESHOLD = 0.25
+MAX_HIGH_GROWTH_FCFE = 0.20
+TTM_FCFE_DEPRESSION_RATIO = 0.55
+
+# Industry valuation profiles (Phase 1): comps multiples + blend weights per archetype.
+VALUATION_PROFILES: dict[str, dict[str, Any]] = {
+    "default": {
+        "label": "Standard operating company",
+        "dcf_mode": "fcfe_single",
+        "comps": ("pe", "ev_ebitda", "ps"),
+        "weights": {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28},
+    },
+    "financial_bank": {
+        "label": "Banks (P/B anchored)",
+        "dcf_mode": None,
+        "comps": ("pb",),
+        "weights": {"Comps": 0.55, "Analyst": 0.45},
+    },
+    "financial_insurance": {
+        "label": "Insurance / diversified financial",
+        "dcf_mode": None,
+        "comps": ("pb",),
+        "weights": {"Comps": 0.50, "Analyst": 0.50},
+    },
+    "payment_network": {
+        "label": "Payment networks",
+        "dcf_mode": "fcfe_single",
+        "comps": ("pe", "ev_ebitda"),
+        "weights": {"DCF": 0.35, "Comps": 0.35, "Analyst": 0.30},
+    },
+    "high_growth_tech": {
+        "label": "High-growth technology",
+        "dcf_mode": "fcfe_single",
+        "comps": ("ps", "ev_ebitda", "pe"),
+        "weights": {"DCF": 0.10, "Comps": 0.50, "Analyst": 0.40},
+    },
+}
 VALUATION_AUDIT_THRESHOLD_PCT = 30.0
 EXTREME_UPSIDE_PCT = VALUATION_AUDIT_THRESHOLD_PCT
 TARGET_SANITY_CAP_PCT = 40.0
@@ -235,6 +272,7 @@ class PeerMetrics:
     market_cap: float | None
     pe_ratio: float | None
     ev_ebitda: float | None
+    pb_ratio: float | None
     profit_margin: float | None
     revenue_growth: float | None
     roe: float | None
@@ -246,6 +284,7 @@ class CompetitorAnalysis:
     peers: list[PeerMetrics]
     peer_median_pe: float | None
     peer_median_ev_ebitda: float | None
+    peer_median_pb: float | None
     peer_median_margin: float | None
     relative_position: str
 
@@ -277,9 +316,11 @@ class CompsResult:
     peer_median_pe: float | None
     peer_median_ev_ebitda: float | None
     peer_median_ps: float | None
+    peer_median_pb: float | None
     implied_price_pe: float | None
     implied_price_ev_ebitda: float | None
     implied_price_ps: float | None
+    implied_price_pb: float | None
     blended_fair_value: float | None
     current_price: float | None
     upside_pct: float | None
@@ -300,6 +341,8 @@ class ValuationSummary:
     analyst_reliable: bool = True
     excluded_methods: dict[str, str] = field(default_factory=dict)
     blend_weights: dict[str, float] = field(default_factory=dict)
+    valuation_profile: str = "default"
+    valuation_profile_label: str = ""
     valuation_audit_triggered: bool = False
     valuation_audit_notes: list[str] = field(default_factory=list)
     data_gaps: list[str] = field(default_factory=list)
@@ -616,6 +659,67 @@ def _use_ps_comps(summary: FinancialSummary) -> bool:
     return not any(k in industry for k in PS_EXCLUDE_KEYWORDS)
 
 
+def resolve_valuation_profile(summary: FinancialSummary) -> str:
+    """Map Yahoo sector/industry to a valuation profile (comps + blend weights)."""
+    industry = (summary.industry or "").lower()
+    sector = (summary.sector or "").lower()
+    rev = summary.revenue_growth or 0
+
+    if "bank" in industry:
+        return "financial_bank"
+    if any(k in industry for k in ("insurance", "reinsurance")):
+        return "financial_insurance"
+    if any(k in industry for k in ("capital markets", "asset management", "financial conglomerate")):
+        return "financial_insurance"
+    if any(k in industry for k in ("credit", "payment", "transaction")) and "bank" not in industry:
+        return "payment_network"
+
+    high_growth_kw = (
+        "semiconductor", "software", "internet content", "internet information",
+        "semiconductor equipment", "computer hardware",
+    )
+    if any(k in industry for k in high_growth_kw) and rev >= 20:
+        return "high_growth_tech"
+    if sector == "technology" and rev >= 25:
+        return "high_growth_tech"
+    return "default"
+
+
+def get_book_value_per_share(data: CompanyData, info: dict) -> float | None:
+    """Book value per share; balance-sheet equity preferred (Yahoo bookValue can be wrong for BRK)."""
+    shares = get_shares_outstanding(info)
+    if not shares or shares <= 0:
+        return None
+    eq = _safe_series_value(data.balance_sheet, "Stockholders Equity", 0)
+    if eq and eq > 0:
+        bps = eq / shares
+        if bps > 0:
+            return bps
+    bv = get_info_value(info, "bookValue")
+    if bv is None or bv <= 0:
+        return None
+    price = get_current_price(info, data.history)
+    if price and price > 0 and (bv > price * 5 or bv < price * 0.02):
+        return None
+    return float(bv)
+
+
+def _comp_type_enabled(summary: FinancialSummary, comp_type: str, profile_key: str) -> bool:
+    spec = VALUATION_PROFILES.get(profile_key, VALUATION_PROFILES["default"])
+    allowed = spec.get("comps", ())
+    if comp_type not in allowed:
+        return False
+    if comp_type == "pb":
+        return True
+    if comp_type == "pe":
+        return _use_pe_comps(summary)
+    if comp_type == "ev_ebitda":
+        return _use_ev_ebitda_comps(summary)
+    if comp_type == "ps":
+        return _use_ps_comps(summary)
+    return False
+
+
 def _comps_implied_price_sane(price: float | None, current: float | None) -> float | None:
     if price is None or price != price or price <= 0:
         return None
@@ -632,11 +736,20 @@ def _projected_fcfe_growth(
     override: float | None = None,
 ) -> float:
     growth = override if override is not None else _fcfe_growth_rate(historical)
-    if summary.revenue_growth and summary.revenue_growth > 5:
-        rev_boost = min(summary.revenue_growth / 100 * 0.5, 0.10)
+    rev_frac = (summary.revenue_growth / 100) if summary.revenue_growth and summary.revenue_growth > 5 else None
+    if rev_frac is not None:
+        if rev_frac >= HIGH_GROWTH_REV_THRESHOLD:
+            rev_boost = min(rev_frac * 0.35, MAX_HIGH_GROWTH_FCFE)
+        else:
+            rev_boost = min(rev_frac * 0.5, 0.10)
         growth = max(growth, rev_boost)
     growth = max(growth, DEFAULT_TERMINAL_GROWTH)
-    return float(min(max(growth, -0.03), MAX_PROJECTED_FCFE_GROWTH))
+    growth_cap = (
+        MAX_HIGH_GROWTH_FCFE
+        if rev_frac is not None and rev_frac >= HIGH_GROWTH_REV_THRESHOLD
+        else MAX_PROJECTED_FCFE_GROWTH
+    )
+    return float(min(max(growth, -0.03), growth_cap))
 
 
 def get_ebitda(financials: pd.DataFrame | None, info: dict) -> float | None:
@@ -885,6 +998,7 @@ def _fetch_peer_metrics(ticker: str) -> PeerMetrics | None:
             market_cap=get_info_value(info, "marketCap"),
             pe_ratio=get_info_value(info, "trailingPE"),
             ev_ebitda=get_info_value(info, "enterpriseToEbitda"),
+            pb_ratio=get_info_value(info, "priceToBook"),
             profit_margin=_margin_pct(info),
             revenue_growth=rev_growth,
             roe=get_info_value(info, "returnOnEquity"),
@@ -927,6 +1041,7 @@ def build_competitor_analysis(
         market_cap=summary.market_cap,
         pe_ratio=summary.pe_ratio,
         ev_ebitda=summary.ev_ebitda,
+        pb_ratio=get_info_value(data.info, "priceToBook"),
         profit_margin=summary.profit_margin,
         revenue_growth=summary.revenue_growth,
         roe=summary.roe,
@@ -934,10 +1049,26 @@ def build_competitor_analysis(
 
     med_pe = _median([p.pe_ratio for p in peers])
     med_ev = _median([p.ev_ebitda for p in peers])
+    med_pb = _median([p.pb_ratio for p in peers])
     med_margin = _median([p.profit_margin for p in peers])
 
     position_parts: list[str] = []
-    if summary.pe_ratio and med_pe:
+    profile_key = resolve_valuation_profile(summary)
+    if profile_key in ("financial_bank", "financial_insurance"):
+        target_pb = get_info_value(data.info, "priceToBook")
+        if not target_pb or target_pb <= 0:
+            bps = get_book_value_per_share(data, data.info)
+            price = summary.current_price
+            if bps and price and bps > 0:
+                target_pb = price / bps
+        if target_pb and med_pb:
+            if target_pb < med_pb * 0.85:
+                position_parts.append("trades at a discount on P/B vs peers")
+            elif target_pb > med_pb * 1.15:
+                position_parts.append("commands premium P/B vs peers")
+            else:
+                position_parts.append("P/B in line with peer median")
+    elif summary.pe_ratio and med_pe:
         if summary.pe_ratio < med_pe * 0.85:
             position_parts.append("trades at a discount on P/E vs peers")
         elif summary.pe_ratio > med_pe * 1.15:
@@ -958,6 +1089,7 @@ def build_competitor_analysis(
         peers=peers,
         peer_median_pe=med_pe,
         peer_median_ev_ebitda=med_ev,
+        peer_median_pb=med_pb,
         peer_median_margin=med_margin,
         relative_position=relative.capitalize(),
     )
@@ -1030,28 +1162,81 @@ def _historical_fcfe_series(data: CompanyData, max_years: int = 4) -> list[float
     return series
 
 
+def _ocf_fcfe_conversion_ratios(data: CompanyData, max_years: int = 4) -> list[float]:
+    cf = data.cashflow
+    if cf is None or cf.empty:
+        return []
+    ratios: list[float] = []
+    for col_i in range(min(max_years, cf.shape[1])):
+        ocf = _safe_series_value(cf, "Operating Cash Flow", col_i)
+        if ocf is None or ocf <= 0:
+            continue
+        fcfe = _compute_fcfe_for_year(cf, data.balance_sheet, col_i)
+        if fcfe is None:
+            fcfe = _standard_fcf_for_year(cf, col_i)
+        if fcfe is not None and fcfe > 0:
+            ratios.append(fcfe / ocf)
+    return ratios
+
+
+def _ocf_normalized_fcfe(data: CompanyData) -> float | None:
+    """Normalize depressed TTM FCF using median historical FCF/OCF conversion."""
+    ratios = _ocf_fcfe_conversion_ratios(data)
+    cf = data.cashflow
+    if not ratios or cf is None or cf.empty:
+        return None
+    ocf_ttm = _safe_series_value(cf, "Operating Cash Flow", 0)
+    if ocf_ttm is None or ocf_ttm <= 0:
+        return None
+    conv = statistics.median(ratios)
+    return ocf_ttm * conv if conv > 0 else None
+
+
 def _simon_base_fcfe(data: CompanyData, summary: FinancialSummary | None = None) -> float | None:
-    """Base FCFE: average historical (Simon), blended with TTM FCF and revenue-based proxy."""
+    """Base FCFE: historical average, TTM, and OCF-normalized proxy (capex-spike resistant)."""
     historical = _historical_fcfe_series(data)
     fcf_ttm = get_free_cash_flow(data.cashflow)
+    ocf_norm = _ocf_normalized_fcfe(data)
+    hist_avg = sum(historical) / len(historical) if historical else None
+
     candidates: list[float] = []
-    if historical:
-        candidates.append(sum(historical) / len(historical))
+    if hist_avg and hist_avg > 0:
+        candidates.append(hist_avg)
     if fcf_ttm and fcf_ttm > 0:
         candidates.append(fcf_ttm)
+    ttm_depressed = bool(
+        hist_avg and fcf_ttm and fcf_ttm > 0 and fcf_ttm < hist_avg * TTM_FCFE_DEPRESSION_RATIO
+    )
+    if ocf_norm and ocf_norm > 0 and ttm_depressed:
+        candidates.append(ocf_norm)
     if summary and summary.revenue and fcf_ttm and summary.revenue > 0:
         fcf_yield = fcf_ttm / summary.revenue
         if fcf_yield > 0:
             candidates.append(summary.revenue * fcf_yield)
+
     if not candidates:
         cf = data.cashflow
         if cf is None or cf.empty:
             return None
         fallback = _compute_fcfe_for_year(cf, data.balance_sheet, 0) or _standard_fcf_for_year(cf, 0)
         return fallback if fallback and fallback > 0 else None
+
     positive = [c for c in candidates if c and c > 0]
     if not positive:
         return None
+
+    # When TTM FCF is depressed vs multi-year average (e.g. AMZN capex year), avoid median bias down.
+    if (
+        ttm_depressed
+        and hist_avg
+        and fcf_ttm
+        and fcf_ttm > 0
+    ):
+        floor = hist_avg * 0.85
+        if ocf_norm and ocf_norm > 0:
+            return max(statistics.median(positive), floor, ocf_norm * 0.9)
+        return max(statistics.median(positive), floor)
+
     return statistics.median(positive)
 
 
@@ -1178,28 +1363,39 @@ def run_comps(
     data: CompanyData,
     summary: FinancialSummary,
     comp_analysis: CompetitorAnalysis,
+    profile_key: str | None = None,
 ) -> CompsResult:
     info = data.info
     shares = get_shares_outstanding(info)
     current = summary.current_price
+    profile_key = profile_key or resolve_valuation_profile(summary)
 
     med_pe = comp_analysis.peer_median_pe
     med_ev_ebitda = comp_analysis.peer_median_ev_ebitda
+    med_pb = comp_analysis.peer_median_pb
 
     eps = get_info_value(info, "trailingEps")
     ebitda = get_ebitda(data.financials, info)
     revenue = get_revenue(data.financials, info)
     net_debt = get_net_debt(data.balance_sheet) or 0
+    bps = get_book_value_per_share(data, info)
 
     implied_pe = None
-    if _use_pe_comps(summary):
+    if _comp_type_enabled(summary, "pe", profile_key):
         implied_pe = _comps_implied_price_sane(
             med_pe * eps if med_pe and eps and eps > 0 else None,
             current,
         )
 
     implied_ev_ebitda = None
-    if _use_ev_ebitda_comps(summary) and med_ev_ebitda and ebitda and ebitda > 0 and shares and shares > 0:
+    if (
+        _comp_type_enabled(summary, "ev_ebitda", profile_key)
+        and med_ev_ebitda
+        and ebitda
+        and ebitda > 0
+        and shares
+        and shares > 0
+    ):
         implied_ev = med_ev_ebitda * ebitda
         implied_equity = implied_ev - net_debt
         if implied_equity > 0:
@@ -1207,7 +1403,7 @@ def run_comps(
 
     med_ps = None
     implied_ps = None
-    if _use_ps_comps(summary):
+    if _comp_type_enabled(summary, "ps", profile_key):
         peer_ps_values = []
         for p in comp_analysis.peers:
             try:
@@ -1221,7 +1417,11 @@ def run_comps(
         if med_ps and revenue and revenue > 0 and shares and shares > 0:
             implied_ps = _comps_implied_price_sane((med_ps * revenue) / shares, current)
 
-    prices = [p for p in (implied_pe, implied_ev_ebitda, implied_ps) if p and p > 0]
+    implied_pb = None
+    if _comp_type_enabled(summary, "pb", profile_key) and med_pb and bps and bps > 0:
+        implied_pb = _comps_implied_price_sane(med_pb * bps, current)
+
+    prices = [p for p in (implied_pe, implied_ev_ebitda, implied_ps, implied_pb) if p and p > 0]
     blended = statistics.median(prices) if prices else None
 
     upside = None
@@ -1232,9 +1432,11 @@ def run_comps(
         peer_median_pe=med_pe,
         peer_median_ev_ebitda=med_ev_ebitda,
         peer_median_ps=med_ps,
+        peer_median_pb=med_pb,
         implied_price_pe=implied_pe,
         implied_price_ev_ebitda=implied_ev_ebitda,
         implied_price_ps=implied_ps,
+        implied_price_pb=implied_pb,
         blended_fair_value=blended,
         current_price=current,
         upside_pct=upside,
@@ -1364,7 +1566,12 @@ def _check_valuation_data_completeness(
     peer_n = len(comp_analysis.peers)
     if peer_n < 2:
         gaps.append(f"sector peers (have {peer_n}, need ≥2)")
-    if not _is_financial_sector(summary):
+    if _is_financial_sector(summary):
+        if not get_book_value_per_share(data, data.info):
+            gaps.append("book value per share")
+        if not comp_analysis.peer_median_pb:
+            gaps.append("peer median P/B")
+    else:
         eps = get_info_value(data.info, "trailingEps")
         if not eps or eps <= 0:
             gaps.append("positive trailing EPS")
@@ -1570,8 +1777,11 @@ def build_valuation_summary(
     comp_analysis: CompetitorAnalysis,
     wacc: float | None = None,
 ) -> ValuationSummary:
+    profile_key = resolve_valuation_profile(summary)
+    profile = VALUATION_PROFILES.get(profile_key, VALUATION_PROFILES["default"])
+
     dcf = run_dcf(data, summary, wacc=wacc)
-    comps = run_comps(data, summary, comp_analysis)
+    comps = run_comps(data, summary, comp_analysis, profile_key=profile_key)
 
     current = summary.current_price or 0
     dcf_t = dcf.implied_price if dcf.implied_price and dcf.implied_price > 0 else None
@@ -1579,7 +1789,7 @@ def build_valuation_summary(
     analyst_t = summary.analyst_target if summary.analyst_target and summary.analyst_target > 0 else None
 
     methods: dict[str, float] = {}
-    if dcf_t:
+    if dcf_t and profile.get("dcf_mode"):
         methods["DCF"] = dcf_t
     if comps_t:
         methods["Comps"] = comps_t
@@ -1600,8 +1810,8 @@ def build_valuation_summary(
     analyst_reliable = "Analyst" in active
     used_median_fallback = False
 
-    base_weights = {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28}
-    weights = {k: base_weights[k] for k in active}
+    profile_weights: dict[str, float] = profile.get("weights", VALUATION_PROFILES["default"]["weights"])
+    weights = {k: profile_weights[k] for k in active if k in profile_weights}
     if not weights and methods:
         target_price = _consensus_target(methods, excluded)
         weights = {}
@@ -1672,6 +1882,8 @@ def build_valuation_summary(
         analyst_reliable=analyst_reliable,
         excluded_methods=excluded,
         blend_weights=weights,
+        valuation_profile=profile_key,
+        valuation_profile_label=str(profile.get("label", profile_key)),
         valuation_audit_triggered=audit_triggered,
         valuation_audit_notes=audit_notes,
         data_gaps=data_gaps,
@@ -1695,6 +1907,12 @@ def build_valuation_crosscheck_table(
     rows: list[list[str]] = [
         ["Valuation Method", "Implied Price", "vs. Current", "Weight in Target", "Notes"],
     ]
+
+    profile_note = (
+        f"Profile: {valuation.valuation_profile_label or valuation.valuation_profile}"
+        if valuation.valuation_profile
+        else ""
+    )
 
     def _weight_cell(method: str) -> str:
         if method in valuation.blend_weights:
@@ -1724,6 +1942,14 @@ def build_valuation_crosscheck_table(
             "—",
             f"Peer median P/E {_fmt_ratio(comps.peer_median_pe)}",
         ])
+    if comps.implied_price_pb:
+        rows.append([
+            "Comps — P/B (peer median)",
+            f"${comps.implied_price_pb:.2f}",
+            _upside_str(comps.implied_price_pb, current),
+            "—",
+            f"Peer median P/B {_fmt_ratio(comps.peer_median_pb)}",
+        ])
     if comps.implied_price_ev_ebitda:
         rows.append([
             "Comps — EV/EBITDA (peer median)",
@@ -1745,7 +1971,7 @@ def build_valuation_crosscheck_table(
         f"${valuation.comps_target:.2f}" if valuation.comps_target else "N/A",
         _upside_str(valuation.comps_target, current),
         _weight_cell("Comps"),
-        _note_cell("Comps") if not valuation.comps_reliable else "Anchor multiple-based value",
+        _note_cell("Comps") if not valuation.comps_reliable else profile_note or "Anchor multiple-based value",
     ])
     rows.append([
         "Analyst consensus (Yahoo Finance)",
@@ -1794,8 +2020,9 @@ def build_executive_summary(summary: FinancialSummary, industry: IndustryResearc
         pct = (valuation.target_price / summary.current_price - 1) * 100
         upside = f", implying {pct:+.1f}% upside from the current price of {price}"
     cross = (
-        " Valuation cross-check uses DCF (Simon FCFE), comparable multiples, and analyst consensus; "
-        "methods that diverge materially from peers are down-weighted."
+        f" Valuation profile: {valuation.valuation_profile_label or 'Standard'}. "
+        "Cross-check uses industry-selected comps, Simon FCFE DCF (where applicable), and analyst consensus; "
+        "methods that diverge materially are down-weighted."
     )
     thesis = (
         f"{name} operates in {sector} ({summary.industry}). "
@@ -2170,8 +2397,8 @@ def _report_row_from_analysis(
         revenue_growth=summary.revenue_growth,
         operating_margin=summary.operating_margin,
         roe=summary.roe,
-        dcf_fair_value=valuation.dcf_target,
-        comps_fair_value=valuation.comps_target,
+        dcf_fair_value=valuation.dcf_target if valuation.dcf_reliable else None,
+        comps_fair_value=valuation.comps_target if valuation.comps_reliable else None,
         target_price=valuation.target_price,
         upside_pct=upside,
         rating=recommendation_short(valuation),

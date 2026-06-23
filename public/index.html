@@ -602,7 +602,12 @@
       const tbody = document.querySelector("#summaryTable tbody");
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
         const arrow = sortCol === c ? (sortAsc ? " ^" : " v") : "";
-        return "<th data-col=\"" + c + "\">" + (LABELS[c] || c) + arrow + "</th>";
+        const title = c === "DCF_Fair_Value"
+          ? " title=\"Shown only when DCF is included in target blend\""
+          : c === "Comps_Fair_Value"
+            ? " title=\"Shown only when comps are included in target blend\""
+            : "";
+        return "<th data-col=\"" + c + "\"" + title + ">" + (LABELS[c] || c) + arrow + "</th>";
       }).join("") + "<th>PDF</th></tr>";
       thead.querySelectorAll("th[data-col]").forEach(function(th) {
         th.onclick = function() {
@@ -700,6 +705,7 @@
         renderTable(window.SUMMARY_ROWS);
         const d = setDataAsOf();
         document.getElementById("asOfText").textContent = "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
+        hint.textContent = "DCF/Comps show N/A when excluded from target blend (distorted FCFE or outlier vs peers). Full model in PDF.";
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }
