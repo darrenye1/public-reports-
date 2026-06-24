@@ -341,6 +341,8 @@ class ValuationSummary:
     analyst_reliable: bool = True
     excluded_methods: dict[str, str] = field(default_factory=dict)
     blend_weights: dict[str, float] = field(default_factory=dict)
+    pre_audit_target: float | None = None
+    pre_audit_weights: dict[str, float] = field(default_factory=dict)
     valuation_profile: str = "default"
     valuation_profile_label: str = ""
     valuation_audit_triggered: bool = False
@@ -1847,6 +1849,8 @@ def build_valuation_summary(
     audit_triggered = False
     audit_notes: list[str] = []
     data_gaps: list[str] = []
+    pre_audit_target = target_price
+    pre_audit_weights = dict(weights)
     if target_price and current and _needs_valuation_audit(target_price, current, methods):
         audit_triggered = True
         (
@@ -1882,6 +1886,8 @@ def build_valuation_summary(
         analyst_reliable=analyst_reliable,
         excluded_methods=excluded,
         blend_weights=weights,
+        pre_audit_target=pre_audit_target,
+        pre_audit_weights=pre_audit_weights,
         valuation_profile=profile_key,
         valuation_profile_label=str(profile.get("label", profile_key)),
         valuation_audit_triggered=audit_triggered,
@@ -1913,18 +1919,49 @@ def build_valuation_crosscheck_table(
         if valuation.valuation_profile
         else ""
     )
+    display_weights = valuation.blend_weights or (
+        valuation.pre_audit_weights if valuation.valuation_audit_triggered else {}
+    )
 
     def _weight_cell(method: str) -> str:
         if method in valuation.blend_weights:
             return f"{valuation.blend_weights[method]:.0%}"
+        if method in display_weights:
+            suffix = " (pre-cap)" if valuation.valuation_audit_triggered and not valuation.blend_weights else ""
+            return f"{display_weights[method]:.0%}{suffix}"
         return "0% (excluded)"
 
     def _note_cell(method: str) -> str:
-        if method in valuation.excluded_methods:
+        if method in valuation.excluded_methods and method not in _BLEND_SKIP_KEYS:
             return valuation.excluded_methods[method]
         if method in valuation.blend_weights:
             return "Included in blend"
-        return "N/A"
+        if method in display_weights and valuation.valuation_audit_triggered:
+            return "Included in pre-audit blend; final target audit-adjusted"
+        if method == "Comps" and valuation.comps_reliable:
+            return profile_note or "Anchor multiple-based value"
+        if method == "Analyst" and valuation.analyst_reliable:
+            return "Included in blend"
+        return "Not in blend"
+
+    def _blend_summary_note() -> str:
+        if valuation.blend_weights:
+            return " + ".join(f"{k} {v:.0%}" for k, v in valuation.blend_weights.items())
+        if display_weights:
+            parts = " + ".join(f"{k} {v:.0%}" for k, v in display_weights.items())
+            if (
+                valuation.pre_audit_target
+                and valuation.target_price
+                and abs(valuation.pre_audit_target - valuation.target_price) > 0.01
+            ):
+                parts += (
+                    f"; pre-cap ${valuation.pre_audit_target:.2f}"
+                    f" -> ${valuation.target_price:.2f}"
+                )
+            elif valuation.valuation_audit_triggered:
+                parts += " (pre-cap blend)"
+            return parts
+        return "Median / single method"
 
     rows.append([
         "DCF (Simon FCFE)",
@@ -1933,6 +1970,18 @@ def build_valuation_crosscheck_table(
         _weight_cell("DCF"),
         _note_cell("DCF"),
     ])
+
+    if valuation.valuation_profile:
+        prof = VALUATION_PROFILES.get(valuation.valuation_profile, {})
+        tpl = prof.get("weights", {})
+        tpl_s = ", ".join(f"{k} {v:.0%}" for k, v in tpl.items()) if tpl else "n/a"
+        rows.append([
+            "Profile template weights",
+            "—",
+            "—",
+            "—",
+            f"{valuation.valuation_profile_label}: {tpl_s}",
+        ])
 
     if comps.implied_price_pe:
         rows.append([
@@ -1971,7 +2020,7 @@ def build_valuation_crosscheck_table(
         f"${valuation.comps_target:.2f}" if valuation.comps_target else "N/A",
         _upside_str(valuation.comps_target, current),
         _weight_cell("Comps"),
-        _note_cell("Comps") if not valuation.comps_reliable else profile_note or "Anchor multiple-based value",
+        _note_cell("Comps") if not valuation.comps_reliable else _note_cell("Comps"),
     ])
     rows.append([
         "Analyst consensus (Yahoo Finance)",
@@ -1985,7 +2034,7 @@ def build_valuation_crosscheck_table(
         f"${valuation.target_price:.2f}" if valuation.target_price else "N/A",
         _upside_str(valuation.target_price, current),
         "100%",
-        " + ".join(f"{k} {v:.0%}" for k, v in valuation.blend_weights.items()) or "Median / single method",
+        _blend_summary_note(),
     ])
     if valuation.valuation_audit_triggered:
         audit_note = "; ".join(valuation.valuation_audit_notes) or "Triggered (|upside| ≥ 30%)"
