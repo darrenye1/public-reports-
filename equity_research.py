@@ -162,36 +162,41 @@ MAX_HIGH_GROWTH_FCFE = 0.20
 TTM_FCFE_DEPRESSION_RATIO = 0.55
 
 # Industry valuation profiles (Phase 1): comps multiples + blend weights per archetype.
+# Analyst weight kept low — Yahoo consensus often lags price moves.
+ANALYST_MAX_BLEND_WEIGHT = 0.20
+ANALYST_STALE_UPSIDE_PCT = 50.0
+ANALYST_VS_COMPS_DIVERGE_PCT = 0.35
+
 VALUATION_PROFILES: dict[str, dict[str, Any]] = {
     "default": {
         "label": "Standard operating company",
         "dcf_mode": "fcfe_single",
         "comps": ("pe", "ev_ebitda", "ps"),
-        "weights": {"DCF": 0.28, "Comps": 0.44, "Analyst": 0.28},
+        "weights": {"DCF": 0.32, "Comps": 0.53, "Analyst": 0.15},
     },
     "financial_bank": {
         "label": "Banks (P/B anchored)",
         "dcf_mode": None,
         "comps": ("pb",),
-        "weights": {"Comps": 0.55, "Analyst": 0.45},
+        "weights": {"Comps": 0.75, "Analyst": 0.25},
     },
     "financial_insurance": {
         "label": "Insurance / diversified financial",
         "dcf_mode": None,
         "comps": ("pb",),
-        "weights": {"Comps": 0.50, "Analyst": 0.50},
+        "weights": {"Comps": 0.70, "Analyst": 0.30},
     },
     "payment_network": {
         "label": "Payment networks",
         "dcf_mode": "fcfe_single",
         "comps": ("pe", "ev_ebitda"),
-        "weights": {"DCF": 0.35, "Comps": 0.35, "Analyst": 0.30},
+        "weights": {"DCF": 0.40, "Comps": 0.45, "Analyst": 0.15},
     },
     "high_growth_tech": {
         "label": "High-growth technology",
         "dcf_mode": "fcfe_single",
         "comps": ("ps", "ev_ebitda", "pe"),
-        "weights": {"DCF": 0.10, "Comps": 0.50, "Analyst": 0.40},
+        "weights": {"DCF": 0.15, "Comps": 0.70, "Analyst": 0.15},
     },
 }
 VALUATION_AUDIT_THRESHOLD_PCT = 30.0
@@ -1461,6 +1466,49 @@ def _assess_dcf_reliability(
     return True, ""
 
 
+def _assess_analyst_reliability(
+    analyst_price: float | None,
+    current: float,
+    comps_price: float | None,
+) -> tuple[bool, str]:
+    """
+    Down-rank stale Yahoo consensus: often lags sharp price moves and drags targets bullish.
+    """
+    if not analyst_price or analyst_price <= 0:
+        return False, "No analyst consensus"
+    if current <= 0:
+        return False, "No current price"
+    analyst_up = (analyst_price / current - 1) * 100
+    if analyst_up > ANALYST_STALE_UPSIDE_PCT:
+        return False, f"Analyst target >{ANALYST_STALE_UPSIDE_PCT:.0f}% above price (likely stale)"
+    if comps_price and comps_price > 0:
+        comps_up = (comps_price / current - 1) * 100
+        rel_gap = abs(analyst_price - comps_price) / comps_price
+        if rel_gap > ANALYST_VS_COMPS_DIVERGE_PCT and analyst_up > comps_up + 12:
+            return False, "Analyst consensus lags / diverges >35% from comps"
+        if analyst_up > 22 and comps_up < 8:
+            return False, "Analyst bullish vs muted comps (stale consensus)"
+    return True, ""
+
+
+def _cap_analyst_blend_weight(weights: dict[str, float]) -> dict[str, float]:
+    """Hard cap analyst share in the active blend."""
+    if "Analyst" not in weights or weights["Analyst"] <= ANALYST_MAX_BLEND_WEIGHT:
+        return weights
+    capped = dict(weights)
+    excess = capped["Analyst"] - ANALYST_MAX_BLEND_WEIGHT
+    capped["Analyst"] = ANALYST_MAX_BLEND_WEIGHT
+    others = [k for k in capped if k != "Analyst"]
+    if not others:
+        return capped
+    other_total = sum(capped[k] for k in others)
+    if other_total <= 0:
+        return capped
+    for k in others:
+        capped[k] += excess * (capped[k] / other_total)
+    return capped
+
+
 def _method_outlier_reason(price: float, other_prices: list[float], current: float) -> str:
     if not other_prices:
         return ""
@@ -1750,23 +1798,37 @@ def _recommendation_from_upside(
     current: float,
     used_median_fallback: bool,
     audit_triggered: bool = False,
+    target_was_capped: bool = False,
 ) -> str:
     confirming = _count_upside_methods(active, current)
-    if diff_pct > 15:
-        if audit_triggered and (diff_pct > EXTREME_UPSIDE_PCT or used_median_fallback):
-            if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
-                return "BUY - Models suggest meaningful upside (audit confirmed)"
-            return "OVERWEIGHT - Elevated upside; audit-adjusted blend"
-        if diff_pct > EXTREME_UPSIDE_PCT and confirming < BUY_MIN_CONFIRMING_METHODS:
-            return "OVERWEIGHT - Elevated upside; limited multi-method confirmation"
+    non_analyst_confirming = _count_upside_methods(
+        {k: v for k, v in active.items() if k != "Analyst"}, current,
+    )
+
+    if target_was_capped and abs(diff_pct) >= TARGET_SANITY_CAP_PCT - 0.5:
+        if diff_pct > 0:
+            if non_analyst_confirming >= BUY_MIN_CONFIRMING_METHODS:
+                return "OVERWEIGHT - Upside capped; comps/models confirm direction"
+            return "HOLD - Target audit-capped; analyst may lag price"
+        if non_analyst_confirming == 0 and confirming == 0:
+            return "UNDERWEIGHT - Downside capped; limited model confirmation"
+        return "HOLD - Target audit-capped; mixed model signals"
+
+    if diff_pct > 20:
         if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
             return "BUY - Models suggest meaningful upside"
+        if audit_triggered:
+            return "OVERWEIGHT - Elevated upside; audit-adjusted blend"
+        return "OVERWEIGHT - Elevated upside; limited multi-method confirmation"
+    if diff_pct > 10:
+        if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
+            return "OVERWEIGHT - Modest upside; models aligned"
         return "OVERWEIGHT - Modest upside; mixed model signals"
     if diff_pct > 5:
-        return "OVERWEIGHT - Modest upside to fair value"
+        return "HOLD - Slight upside; near fair value"
     if diff_pct > -5:
         return "HOLD - Fairly valued"
-    if diff_pct > -15:
+    if diff_pct > -12:
         return "UNDERWEIGHT - Trading above model fair value"
     if diff_pct <= -EXTREME_UPSIDE_PCT and confirming == 0:
         return "SELL - Significant downside vs models"
@@ -1806,6 +1868,12 @@ def build_valuation_summary(
             excluded["DCF"] = hard_reason
             active.pop("DCF", None)
 
+    if analyst_t:
+        analyst_ok, analyst_reason = _assess_analyst_reliability(analyst_t, current, comps_t)
+        if not analyst_ok:
+            excluded["Analyst"] = analyst_reason
+            active.pop("Analyst", None)
+
     dcf_reliable = "DCF" in active
     dcf_reason = excluded.get("DCF", "")
     comps_reliable = "Comps" in active
@@ -1821,7 +1889,8 @@ def build_valuation_summary(
     else:
         total_w = sum(weights.values())
         weights = {k: v / total_w for k, v in weights.items()}
-        target_price = sum(active[k] * weights[k] for k in active) if active else None
+        weights = _cap_analyst_blend_weight(weights)
+        target_price = sum(active[k] * weights[k] for k in active if k in weights) if active else None
 
     # Analyst-only when DCF/Comps were excluded as too low: Comps + Analyst consensus (no DCF).
     suppressed_low = _suppressed_low_model_prices(methods, excluded, current)
@@ -1862,10 +1931,21 @@ def build_valuation_summary(
             target_price, current, weights, used_median_fallback,
         )
 
+    target_was_capped = False
+    if (
+        audit_triggered
+        and pre_audit_target
+        and target_price
+        and current > 0
+        and abs((pre_audit_target / current - 1) * 100) > TARGET_SANITY_CAP_PCT
+        and abs((target_price / current - 1) * 100) <= TARGET_SANITY_CAP_PCT + 0.5
+    ):
+        target_was_capped = True
+
     if target_price and current:
         diff_pct = (target_price / current - 1) * 100
         rec = _recommendation_from_upside(
-            diff_pct, active, current, used_median_fallback, audit_triggered,
+            diff_pct, active, current, used_median_fallback, audit_triggered, target_was_capped,
         )
         if audit_triggered and data_gaps and abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT:
             rec = "HOLD - Extreme move; incomplete inputs (see audit)"
