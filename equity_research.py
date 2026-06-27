@@ -166,6 +166,9 @@ TTM_FCFE_DEPRESSION_RATIO = 0.55
 ANALYST_MAX_BLEND_WEIGHT = 0.20
 ANALYST_STALE_UPSIDE_PCT = 50.0
 ANALYST_VS_COMPS_DIVERGE_PCT = 0.35
+ANALYST_MODERATE_UPSIDE_MAX = 25.0
+COMPS_DEPRESSED_VS_CURRENT = 0.75
+PREMIUM_LARGE_CAP = 200e9
 
 VALUATION_PROFILES: dict[str, dict[str, Any]] = {
     "default": {
@@ -199,10 +202,10 @@ VALUATION_PROFILES: dict[str, dict[str, Any]] = {
         "weights": {"DCF": 0.15, "Comps": 0.70, "Analyst": 0.15},
     },
     "financial_conglomerate": {
-        "label": "Diversified holding / conglomerate",
+        "label": "Diversified holding / conglomerate (P/B + analyst)",
         "dcf_mode": None,
-        "comps": (),
-        "weights": {"Analyst": 1.0},
+        "comps": ("pb",),
+        "weights": {"Comps": 0.55, "Analyst": 0.45},
     },
 }
 FALLBACK_ANCHOR_WEIGHT = 0.60
@@ -332,9 +335,11 @@ class CompsResult:
     peer_median_ps: float | None
     peer_median_pb: float | None
     implied_price_pe: float | None
+    implied_price_forward_pe: float | None
     implied_price_ev_ebitda: float | None
     implied_price_ps: float | None
     implied_price_pb: float | None
+    implied_price_historical_band: float | None
     blended_fair_value: float | None
     current_price: float | None
     upside_pct: float | None
@@ -752,6 +757,41 @@ def _comps_implied_price_sane(price: float | None, current: float | None) -> flo
     return price
 
 
+def _historical_valuation_band_price(info: dict, current: float | None) -> float | None:
+    """52-week range tri-mean — anchors premium names when trailing comps lag price."""
+    hi = get_info_value(info, "fiftyTwoWeekHigh")
+    lo = get_info_value(info, "fiftyTwoWeekLow")
+    if not hi or not lo or hi < lo:
+        return None
+    if current and current > 0:
+        return (float(hi) + float(lo) + float(current)) / 3
+    return (float(hi) + float(lo)) / 2
+
+
+def _blend_comps_fair_value(
+    trailing_prices: list[float],
+    uplift_prices: list[float],
+    current: float | None,
+) -> float | None:
+    """
+    Median of trailing peer multiples; when trailing cluster is far below price,
+    blend in forward P/E and historical band anchors.
+    """
+    trailing = [p for p in trailing_prices if p and p > 0]
+    uplifts = [p for p in uplift_prices if p and p > 0]
+    if not trailing and not uplifts:
+        return None
+    if not trailing:
+        return statistics.median(uplifts)
+    base = statistics.median(trailing)
+    if current and current > 0 and base < current * COMPS_DEPRESSED_VS_CURRENT and uplifts:
+        uplift_med = statistics.median(uplifts)
+        if uplift_med > base:
+            return statistics.median([base, uplift_med, uplift_med])
+    all_prices = trailing + uplifts
+    return statistics.median(all_prices)
+
+
 def _projected_fcfe_growth(
     historical: list[float],
     summary: FinancialSummary,
@@ -1076,7 +1116,7 @@ def build_competitor_analysis(
 
     position_parts: list[str] = []
     profile_key = resolve_valuation_profile(summary)
-    if profile_key in ("financial_bank", "financial_insurance"):
+    if profile_key in ("financial_bank", "financial_insurance", "financial_conglomerate"):
         target_pb = get_info_value(data.info, "priceToBook")
         if not target_pb or target_pb <= 0:
             bps = get_book_value_per_share(data, data.info)
@@ -1403,11 +1443,15 @@ def run_comps(
     bps = get_book_value_per_share(data, info)
 
     implied_pe = None
+    implied_forward_pe = None
     if _comp_type_enabled(summary, "pe", profile_key):
         implied_pe = _comps_implied_price_sane(
             med_pe * eps if med_pe and eps and eps > 0 else None,
             current,
         )
+        forward_eps = get_info_value(info, "forwardEps")
+        if med_pe and forward_eps and forward_eps > 0:
+            implied_forward_pe = _comps_implied_price_sane(med_pe * forward_eps, current)
 
     implied_ev_ebitda = None
     if (
@@ -1440,11 +1484,23 @@ def run_comps(
             implied_ps = _comps_implied_price_sane((med_ps * revenue) / shares, current)
 
     implied_pb = None
-    if _comp_type_enabled(summary, "pb", profile_key) and med_pb and bps and bps > 0:
-        implied_pb = _comps_implied_price_sane(med_pb * bps, current)
+    if _comp_type_enabled(summary, "pb", profile_key) and bps and bps > 0:
+        if profile_key == "financial_conglomerate":
+            # Holding companies: 1.0x adjusted book as primary NAV anchor (peer P/B often mis-matched).
+            implied_pb = _comps_implied_price_sane(bps, current)
+        elif med_pb:
+            implied_pb = _comps_implied_price_sane(med_pb * bps, current)
 
-    prices = [p for p in (implied_pe, implied_ev_ebitda, implied_ps, implied_pb) if p and p > 0]
-    blended = statistics.median(prices) if prices else None
+    implied_historical = None
+    if summary.market_cap and summary.market_cap >= PREMIUM_LARGE_CAP:
+        implied_historical = _comps_implied_price_sane(
+            _historical_valuation_band_price(info, current),
+            current,
+        )
+
+    trailing_prices = [p for p in (implied_pe, implied_ev_ebitda, implied_ps, implied_pb) if p and p > 0]
+    uplift_prices = [p for p in (implied_forward_pe, implied_historical) if p and p > 0]
+    blended = _blend_comps_fair_value(trailing_prices, uplift_prices, current)
 
     upside = None
     if blended and current and current > 0:
@@ -1456,9 +1512,11 @@ def run_comps(
         peer_median_ps=med_ps,
         peer_median_pb=med_pb,
         implied_price_pe=implied_pe,
+        implied_price_forward_pe=implied_forward_pe,
         implied_price_ev_ebitda=implied_ev_ebitda,
         implied_price_ps=implied_ps,
         implied_price_pb=implied_pb,
+        implied_price_historical_band=implied_historical,
         blended_fair_value=blended,
         current_price=current,
         upside_pct=upside,
@@ -1496,6 +1554,8 @@ def _assess_analyst_reliability(
     analyst_up = (analyst_price / current - 1) * 100
     if analyst_up > ANALYST_STALE_UPSIDE_PCT:
         return False, f"Analyst target >{ANALYST_STALE_UPSIDE_PCT:.0f}% above price (likely stale)"
+    if abs(analyst_up) <= ANALYST_MODERATE_UPSIDE_MAX:
+        return True, ""
     if comps_price and comps_price > 0:
         comps_up = (comps_price / current - 1) * 100
         rel_gap = abs(analyst_price - comps_price) / comps_price
@@ -1506,19 +1566,28 @@ def _assess_analyst_reliability(
     return True, ""
 
 
-def _cap_analyst_blend_weight(weights: dict[str, float]) -> dict[str, float]:
-    """Hard cap analyst share in the active blend."""
-    if "Analyst" not in weights or weights["Analyst"] <= ANALYST_MAX_BLEND_WEIGHT:
+def _cap_analyst_blend_weight(
+    weights: dict[str, float],
+    profile_weights: dict[str, float] | None = None,
+) -> dict[str, float]:
+    """Hard cap analyst share when blended with DCF/Comps — never scale sole-analyst targets."""
+    template_analyst = (profile_weights or {}).get("Analyst")
+    max_analyst = (
+        max(ANALYST_MAX_BLEND_WEIGHT, template_analyst)
+        if template_analyst
+        else ANALYST_MAX_BLEND_WEIGHT
+    )
+    if "Analyst" not in weights or weights["Analyst"] <= max_analyst:
+        return weights
+    others = [k for k in weights if k != "Analyst"]
+    if not others:
         return weights
     capped = dict(weights)
-    excess = capped["Analyst"] - ANALYST_MAX_BLEND_WEIGHT
-    capped["Analyst"] = ANALYST_MAX_BLEND_WEIGHT
-    others = [k for k in capped if k != "Analyst"]
-    if not others:
-        return capped
+    excess = capped["Analyst"] - max_analyst
+    capped["Analyst"] = max_analyst
     other_total = sum(capped[k] for k in others)
     if other_total <= 0:
-        return capped
+        return weights
     for k in others:
         capped[k] += excess * (capped[k] / other_total)
     return capped
@@ -1586,12 +1655,23 @@ def _apply_all_excluded_fallback(
     return target, weights, notes, active
 
 
-def _method_outlier_reason(price: float, other_prices: list[float], current: float) -> str:
+def _method_outlier_reason(
+    price: float,
+    other_prices: list[float],
+    current: float,
+    method_name: str = "",
+) -> str:
     if not other_prices:
         return ""
     med = statistics.median(other_prices)
     if med <= 0:
         return ""
+    # Keep modest analyst views when DCF/Comps are depressed vs market (trailing bias).
+    if method_name == "Analyst" and current > 0:
+        analyst_up = (price / current - 1) * 100
+        depressed_others = [p for p in other_prices if p > 0 and p < current * COMPS_DEPRESSED_VS_CURRENT]
+        if abs(analyst_up) <= ANALYST_MODERATE_UPSIDE_MAX and len(depressed_others) == len([p for p in other_prices if p > 0]):
+            return ""
     ratio_med = price / med
     if ratio_med < OUTLIER_VS_MEDIAN_LOW:
         return f"Diverges below other methods ({ratio_med:.0%} of median)"
@@ -1620,7 +1700,7 @@ def _filter_valuation_methods(
         for name in list(active.keys()):
             price = active[name]
             others = [p for n, p in active.items() if n != name]
-            reason = _method_outlier_reason(price, others, current)
+            reason = _method_outlier_reason(price, others, current, name)
             if reason:
                 excluded[name] = reason
                 del active[name]
@@ -1749,6 +1829,33 @@ def _cap_target_sanity(target: float | None, current: float) -> tuple[float | No
     return capped, True
 
 
+def _should_apply_sanity_cap(
+    target_price: float,
+    current: float,
+    methods: dict[str, float],
+    excluded: dict[str, str],
+    active: dict[str, float],
+) -> bool:
+    """
+    Apply ±40% cap only when multiple methods disagree — not for a single coherent anchor
+    (e.g. analyst-only conglomerate, or unanimous DCF+Comps bearish view).
+    """
+    upside_abs = abs((target_price / current - 1) * 100)
+    if upside_abs <= TARGET_SANITY_CAP_PCT:
+        return False
+    if len(active) == 1:
+        return False
+    consensus = _consensus_blend_prices(methods, excluded)
+    if len(consensus) <= 1:
+        return False
+    cluster = _cluster_method_prices(methods, excluded)
+    if len(cluster) >= 2 and len(cluster) == len(consensus):
+        return False
+    if len(consensus) >= 2 and len(cluster) < 2:
+        return True
+    return len(consensus) >= 2
+
+
 def _cluster_method_prices(methods: dict[str, float], excluded: dict[str, str] | None = None) -> list[float]:
     """Prices within METHOD_CLUSTER_BAND_PCT of the cross-method median."""
     prices = _consensus_blend_prices(methods, excluded or {})
@@ -1855,7 +1962,9 @@ def _apply_valuation_audit(
                 actions.append("High upside with <2 confirming methods: capped at consensus median")
 
     capped, was_capped = _cap_target_sanity(target_price, current)
-    if was_capped and capped is not None:
+    if was_capped and capped is not None and _should_apply_sanity_cap(
+        target_price, current, methods, excluded, active,
+    ):
         target_price = capped
         weights = {}
         used_median_fallback = True
@@ -1999,7 +2108,7 @@ def build_valuation_summary(
         else:
             total_w = sum(weights.values())
             weights = {k: v / total_w for k, v in weights.items()}
-            weights = _cap_analyst_blend_weight(weights)
+            weights = _cap_analyst_blend_weight(weights, profile_weights)
             target_price = sum(active[k] * weights[k] for k in active if k in weights) if active else None
 
         # Analyst-only when DCF/Comps were excluded as too low: Comps + Analyst consensus (no DCF).
@@ -2028,6 +2137,11 @@ def build_valuation_summary(
             data, summary, comp_analysis, methods, active, excluded,
             target_price, current, weights, used_median_fallback,
         )
+
+    if weights:
+        dcf_reliable = dcf_reliable or ("DCF" in weights and weights["DCF"] > 0)
+        comps_reliable = comps_reliable or ("Comps" in weights and weights["Comps"] > 0)
+        analyst_reliable = analyst_reliable or ("Analyst" in weights and weights["Analyst"] > 0)
 
     target_was_capped = False
     if (
@@ -2209,11 +2323,27 @@ def build_valuation_crosscheck_table(
 
     if comps.implied_price_pe:
         rows.append([
-            "Comps — P/E (peer median)",
+            "Comps — P/E (peer median, trailing EPS)",
             f"${comps.implied_price_pe:.2f}",
             _upside_str(comps.implied_price_pe, current),
             "—",
             f"Peer median P/E {_fmt_ratio(comps.peer_median_pe)}",
+        ])
+    if comps.implied_price_forward_pe:
+        rows.append([
+            "Comps — P/E (peer median, forward EPS)",
+            f"${comps.implied_price_forward_pe:.2f}",
+            _upside_str(comps.implied_price_forward_pe, current),
+            "—",
+            f"Forward EPS × peer median P/E",
+        ])
+    if comps.implied_price_historical_band:
+        rows.append([
+            "Comps — 52-week range anchor",
+            f"${comps.implied_price_historical_band:.2f}",
+            _upside_str(comps.implied_price_historical_band, current),
+            "—",
+            "Tri-mean of 52w high, low, and current (large cap)",
         ])
     if comps.implied_price_pb:
         rows.append([

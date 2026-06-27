@@ -1,13 +1,13 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-27T14:59:31Z",
+  "generated_at": "2026-06-27T19:18:08Z",
   "data_as_of": "2026-06-27",
   "news": [
     {
-      "title": "Dow Jones Futures: Market At Tipping Point, Here's What To Do. Eli Lilly Soars, Tesla On Tap.",
+      "title": "Dow Jones Futures: Market At Tipping Point. Eli Lilly Soars, Tesla, Jobs On Tap.",
       "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
       "source": "Investor's Business Daily",
       "summary": "Here's what investors should do amid the stock market's divergent signals. Eli Lilly is strong while Tesla EV sales loom.",
-      "published": "2026-06-27T12:00:44+00:00",
+      "published": "2026-06-27T15:52:10+00:00",
       "published_display": "Jun 27, 2026",
       "day": "2026-06-27"
     },
