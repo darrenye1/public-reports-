@@ -205,6 +205,9 @@ VALUATION_PROFILES: dict[str, dict[str, Any]] = {
         "weights": {"Analyst": 1.0},
     },
 }
+FALLBACK_ANCHOR_WEIGHT = 0.60
+FALLBACK_ANALYST_WEIGHT = 0.40
+
 VALUATION_AUDIT_THRESHOLD_PCT = 30.0
 EXTREME_UPSIDE_PCT = VALUATION_AUDIT_THRESHOLD_PCT
 TARGET_SANITY_CAP_PCT = 40.0
@@ -355,6 +358,7 @@ class ValuationSummary:
     pre_audit_target: float | None = None
     pre_audit_weights: dict[str, float] = field(default_factory=dict)
     target_was_capped: bool = False
+    used_fallback_blend: bool = False
     valuation_profile: str = "default"
     valuation_profile_label: str = ""
     valuation_audit_triggered: bool = False
@@ -1520,6 +1524,68 @@ def _cap_analyst_blend_weight(weights: dict[str, float]) -> dict[str, float]:
     return capped
 
 
+def _pick_fallback_anchor(methods: dict[str, float], current: float) -> tuple[str, float] | None:
+    """Choose the most reasonable non-analyst method for 60% fallback anchor."""
+    candidates = [(n, p) for n, p in methods.items() if n != "Analyst" and p and p > 0]
+    if not candidates:
+        return None
+    for preferred in ("Comps", "DCF"):
+        for name, price in candidates:
+            if name == preferred:
+                return name, price
+    if current > 0:
+        return min(candidates, key=lambda item: abs(item[1] / current - 1))
+    return candidates[0]
+
+
+def _apply_all_excluded_fallback(
+    methods: dict[str, float],
+    excluded: dict[str, str],
+    current: float,
+) -> tuple[float | None, dict[str, float], dict[str, str], dict[str, float]]:
+    """
+    When strict filters remove every method, blend best anchor (60%) + analyst (40%).
+    Uses raw model prices even though they failed strict reliability checks.
+    """
+    anchor = _pick_fallback_anchor(methods, current)
+    analyst_p = methods.get("Analyst")
+    if analyst_p is not None and analyst_p <= 0:
+        analyst_p = None
+
+    notes = dict(excluded)
+    if not anchor and not analyst_p:
+        return None, {}, notes, {}
+
+    if anchor:
+        name, price = anchor
+        if analyst_p:
+            target = price * FALLBACK_ANCHOR_WEIGHT + analyst_p * FALLBACK_ANALYST_WEIGHT
+            weights = {name: FALLBACK_ANCHOR_WEIGHT, "Analyst": FALLBACK_ANALYST_WEIGHT}
+            active = {name: price, "Analyst": analyst_p}
+            prior = notes.get(name, "")
+            notes[name] = f"{prior}; Fallback anchor ({FALLBACK_ANCHOR_WEIGHT:.0%})".lstrip("; ")
+            prior_a = notes.get("Analyst", "")
+            notes["Analyst"] = f"{prior_a}; Fallback blend ({FALLBACK_ANALYST_WEIGHT:.0%})".lstrip("; ")
+        else:
+            target = price
+            weights = {name: 1.0}
+            active = {name: price}
+            prior = notes.get(name, "")
+            notes[name] = f"{prior}; Fallback sole anchor".lstrip("; ")
+    else:
+        target = analyst_p
+        weights = {"Analyst": 1.0}
+        active = {"Analyst": analyst_p}
+        prior_a = notes.get("Analyst", "")
+        notes["Analyst"] = f"{prior_a}; Fallback analyst-only".lstrip("; ")
+
+    notes["Fallback"] = (
+        f"All methods failed strict checks; using "
+        f"{FALLBACK_ANCHOR_WEIGHT:.0%} best anchor + {FALLBACK_ANALYST_WEIGHT:.0%} analyst"
+    )
+    return target, weights, notes, active
+
+
 def _method_outlier_reason(price: float, other_prices: list[float], current: float) -> str:
     if not other_prices:
         return ""
@@ -1885,55 +1951,69 @@ def build_valuation_summary(
             excluded["Analyst"] = analyst_reason
             active.pop("Analyst", None)
 
+    used_fallback_blend = False
     if not active:
-        return ValuationSummary(
-            dcf=dcf,
-            comps=comps,
-            recommendation="HOLD - Insufficient valuation data",
-            target_price=None,
-            dcf_target=dcf_t,
-            comps_target=comps_t,
-            analyst_target=analyst_t,
-            dcf_reliable=False,
-            dcf_exclusion_reason=excluded.get("DCF", ""),
-            comps_reliable=False,
-            analyst_reliable=False,
-            excluded_methods=excluded,
-            valuation_profile=profile_key,
-            valuation_profile_label=str(profile.get("label", profile_key)),
+        fb_target, fb_weights, excluded, active = _apply_all_excluded_fallback(
+            methods, excluded, current,
         )
-
-    dcf_reliable = "DCF" in active
-    dcf_reason = excluded.get("DCF", "")
-    comps_reliable = "Comps" in active
-    analyst_reliable = "Analyst" in active
-    used_median_fallback = False
-
-    profile_weights: dict[str, float] = profile.get("weights", VALUATION_PROFILES["default"]["weights"])
-    weights = {k: profile_weights[k] for k in active if k in profile_weights}
-    if not weights and methods:
-        target_price = _consensus_target(methods, excluded)
-        weights = {}
-        used_median_fallback = True
+        if not fb_target or not active:
+            return ValuationSummary(
+                dcf=dcf,
+                comps=comps,
+                recommendation="HOLD - Insufficient valuation data",
+                target_price=None,
+                dcf_target=dcf_t,
+                comps_target=comps_t,
+                analyst_target=analyst_t,
+                dcf_reliable=False,
+                dcf_exclusion_reason=excluded.get("DCF", ""),
+                comps_reliable=False,
+                analyst_reliable=False,
+                excluded_methods=excluded,
+                valuation_profile=profile_key,
+                valuation_profile_label=str(profile.get("label", profile_key)),
+            )
+        target_price = fb_target
+        weights = fb_weights
+        used_fallback_blend = True
+        used_median_fallback = False
+        dcf_reliable = "DCF" in weights
+        dcf_reason = excluded.get("DCF", "")
+        comps_reliable = "Comps" in weights
+        analyst_reliable = "Analyst" in weights
+        pre_audit_target = target_price
+        pre_audit_weights = dict(weights)
     else:
-        total_w = sum(weights.values())
-        weights = {k: v / total_w for k, v in weights.items()}
-        weights = _cap_analyst_blend_weight(weights)
-        target_price = sum(active[k] * weights[k] for k in active if k in weights) if active else None
+        dcf_reliable = "DCF" in active
+        dcf_reason = excluded.get("DCF", "")
+        comps_reliable = "Comps" in active
+        analyst_reliable = "Analyst" in active
+        used_median_fallback = False
 
-    # Analyst-only when DCF/Comps were excluded as too low: Comps + Analyst consensus (no DCF).
-    suppressed_low = _suppressed_low_model_prices(methods, excluded, current)
-    if target_price and set(active.keys()) == {"Analyst"} and suppressed_low:
-        target_price = _consensus_target(methods, excluded)
-        weights = {}
-        used_median_fallback = True
-        analyst_reliable = False
-        excluded = dict(excluded)
-        excluded["Analyst"] = "Consensus with Comps (excluded low DCF not used in blend)"
+        profile_weights: dict[str, float] = profile.get("weights", VALUATION_PROFILES["default"]["weights"])
+        weights = {k: profile_weights[k] for k in active if k in profile_weights}
+        if not weights and methods:
+            target_price = _consensus_target(methods, excluded)
+            weights = {}
+            used_median_fallback = True
+        else:
+            total_w = sum(weights.values())
+            weights = {k: v / total_w for k, v in weights.items()}
+            weights = _cap_analyst_blend_weight(weights)
+            target_price = sum(active[k] * weights[k] for k in active if k in weights) if active else None
 
-    # Capture blend before audit (audit may cap target or clear weights for display).
-    pre_audit_target = target_price
-    pre_audit_weights = dict(weights)
+        # Analyst-only when DCF/Comps were excluded as too low: Comps + Analyst consensus (no DCF).
+        suppressed_low = _suppressed_low_model_prices(methods, excluded, current)
+        if target_price and set(active.keys()) == {"Analyst"} and suppressed_low:
+            target_price = _consensus_target(methods, excluded)
+            weights = {}
+            used_median_fallback = True
+            analyst_reliable = False
+            excluded = dict(excluded)
+            excluded["Analyst"] = "Consensus with Comps (excluded low DCF not used in blend)"
+
+        pre_audit_target = target_price
+        pre_audit_weights = dict(weights)
 
     audit_triggered = False
     audit_notes: list[str] = []
@@ -1996,6 +2076,7 @@ def build_valuation_summary(
         pre_audit_target=pre_audit_target,
         pre_audit_weights=pre_audit_weights,
         target_was_capped=target_was_capped,
+        used_fallback_blend=used_fallback_blend,
         valuation_profile=profile_key,
         valuation_profile_label=str(profile.get("label", profile_key)),
         valuation_audit_triggered=audit_triggered,
@@ -2179,6 +2260,14 @@ def build_valuation_crosscheck_table(
         "100%",
         _blend_summary_note(),
     ])
+    if valuation.used_fallback_blend and valuation.excluded_methods.get("Fallback"):
+        rows.append([
+            "Fallback blend (all strict checks failed)",
+            "—",
+            "—",
+            "—",
+            valuation.excluded_methods["Fallback"],
+        ])
     if valuation.valuation_audit_triggered:
         audit_note = "; ".join(valuation.valuation_audit_notes) or "Triggered (|upside| ≥ 30%)"
         if valuation.data_gaps:

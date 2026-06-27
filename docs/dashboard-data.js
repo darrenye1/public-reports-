@@ -1,13 +1,22 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-26T23:23:50Z",
-  "data_as_of": "2026-06-26",
+  "generated_at": "2026-06-27T14:59:31Z",
+  "data_as_of": "2026-06-27",
   "news": [
     {
-      "title": "Treasury Yields, Dollar Trend Lower as Inflation Fears Ease",
-      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-062626/card/treasury-yields-dollar-trend-lower-as-inflation-fears-ease-sBWjkvjMJ1LgdyDu01ZK?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "Treasury yields and the dollar ease as oil prices fall 3% and markets recalibrate the outlook for U.S. interest rates. Odds of one rate increase this year remain high, priced at 42% on CME's FedWatch tool, while odds of a second hike decline to 28% from 34% a week ago, as inflati",
-      "published": "2026-06-26T14:29:51+00:00",
+      "title": "Dow Jones Futures: Market At Tipping Point, Here's What To Do. Eli Lilly Soars, Tesla On Tap.",
+      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
+      "source": "Investor's Business Daily",
+      "summary": "Here's what investors should do amid the stock market's divergent signals. Eli Lilly is strong while Tesla EV sales loom.",
+      "published": "2026-06-27T12:00:44+00:00",
+      "published_display": "Jun 27, 2026",
+      "day": "2026-06-27"
+    },
+    {
+      "title": "Dollar declines for second straight day but set for weekly gain",
+      "url": "https://finance.yahoo.com/news/yen-wobbles-near-40-low-010511440.html",
+      "source": "Reuters",
+      "summary": "NEW YORK, June 26 (Reuters) - The dollar fell for a second straight session on Friday as recent economic data and a drop in oil prices slightly cooled expectations for Federal Reserve rate hikes,",
+      "published": "2026-06-26T18:50:24+00:00",
       "published_display": "Jun 26, 2026",
       "day": "2026-06-26"
     },
