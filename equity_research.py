@@ -196,10 +196,10 @@ VALUATION_PROFILES: dict[str, dict[str, Any]] = {
         "weights": {"DCF": 0.40, "Comps": 0.45, "Analyst": 0.15},
     },
     "high_growth_tech": {
-        "label": "High-growth technology",
-        "dcf_mode": "fcfe_single",
+        "label": "High-growth technology (Comps-anchored; DCF excluded when distorted)",
+        "dcf_mode": None,
         "comps": ("ps", "ev_ebitda"),
-        "weights": {"DCF": 0.15, "Comps": 0.70, "Analyst": 0.15},
+        "weights": {"Comps": 0.85, "Analyst": 0.15},
     },
     "financial_conglomerate": {
         "label": "Diversified holding / conglomerate (P/B + analyst)",
@@ -218,6 +218,7 @@ BUY_MIN_CONFIRMING_METHODS = 2
 SOLO_ANALYST_LOW_MODEL_VS_CURRENT = 0.85
 METHOD_CLUSTER_BAND_PCT = 0.30
 _BLEND_SKIP_KEYS = frozenset({"Audit"})
+CONGLOMERATE_BOOK_ONLY_TICKERS = frozenset({"BRK-B", "BRK-A", "BRK.B", "BRK.A"})
 
 NAVY = colors.HexColor("#1a365d")
 ACCENT = colors.HexColor("#2b6cb0")
@@ -364,6 +365,7 @@ class ValuationSummary:
     pre_audit_weights: dict[str, float] = field(default_factory=dict)
     target_was_capped: bool = False
     used_fallback_blend: bool = False
+    used_median_fallback: bool = False
     valuation_profile: str = "default"
     valuation_profile_label: str = ""
     valuation_audit_triggered: bool = False
@@ -690,9 +692,9 @@ def resolve_valuation_profile(summary: FinancialSummary) -> str:
 
     if "bank" in industry:
         return "financial_bank"
-    if "insurance" in industry and "diversified" in industry:
+    if summary.ticker.upper() in CONGLOMERATE_BOOK_ONLY_TICKERS:
         return "financial_conglomerate"
-    if summary.ticker.upper() in ("BRK-B", "BRK-A", "BRK.B", "BRK.A"):
+    if "insurance" in industry and "diversified" in industry:
         return "financial_conglomerate"
     if any(k in industry for k in ("insurance", "reinsurance")):
         return "financial_insurance"
@@ -841,6 +843,9 @@ def discover_sector_peers(ticker: str, sector: str | None, industry: str | None,
     Priority: exact industry map -> industry keyword rules -> legacy maps -> sector (only if industry unknown).
     """
     symbol = ticker.upper()
+    if symbol in CONGLOMERATE_BOOK_ONLY_TICKERS:
+        return []
+
     industry_key = (industry or "").strip()
     industry_l = industry_key.lower()
     has_specific_industry = bool(industry_key and industry_key.upper() != "N/A")
@@ -1492,7 +1497,14 @@ def run_comps(
             implied_pb = _comps_implied_price_sane(med_pb * bps, current)
 
     implied_historical = None
-    if summary.market_cap and summary.market_cap >= PREMIUM_LARGE_CAP:
+    _no_hist_band = profile_key in (
+        "financial_bank", "financial_insurance", "financial_conglomerate", "payment_network",
+    )
+    if (
+        not _no_hist_band
+        and summary.market_cap
+        and summary.market_cap >= PREMIUM_LARGE_CAP
+    ):
         implied_historical = _comps_implied_price_sane(
             _historical_valuation_band_price(info, current),
             current,
@@ -1756,6 +1768,26 @@ def _needs_valuation_audit(
     )
 
 
+def _is_peer_count_gap_only(gaps: list[str]) -> bool:
+    return bool(gaps) and all("sector peers" in g for g in gaps)
+
+
+def _effective_confirming_methods(
+    methods: dict[str, float],
+    weights: dict[str, float],
+    excluded: dict[str, str],
+    active: dict[str, float],
+) -> dict[str, float]:
+    """Methods that actually informed the final target (for rating gates)."""
+    if weights:
+        return {k: methods[k] for k in weights if k in methods and weights[k] > 0}
+    eligible = {
+        k: v for k, v in methods.items()
+        if k not in excluded and k not in _BLEND_SKIP_KEYS and v > 0
+    }
+    return eligible if eligible else dict(active)
+
+
 def _check_valuation_data_completeness(
     data: CompanyData,
     summary: FinancialSummary,
@@ -1889,6 +1921,7 @@ def _apply_valuation_audit(
     bool,
     list[str],
     list[str],
+    bool,
 ]:
     """Re-validate when |upside| ≥ 30%; tighten target if data or methods are weak."""
     gaps = _check_valuation_data_completeness(data, summary, comp_analysis)
@@ -1897,22 +1930,28 @@ def _apply_valuation_audit(
     dcf_reliable = "DCF" in active
     comps_reliable = "Comps" in active
     analyst_reliable = "Analyst" in active
+    sanity_cap_applied = False
 
     if not target_price or current <= 0 or not methods:
         return (
             target_price, weights, excluded, used_median_fallback,
             dcf_reliable, comps_reliable, analyst_reliable, gaps, actions,
+            sanity_cap_applied,
         )
 
     diff_pct = _method_upside_pct(target_price, current) or 0
 
     if gaps:
         actions.append(f"Incomplete data: {', '.join(gaps)}")
-        target_price = _consensus_target(methods, excluded)
-        weights = {}
-        used_median_fallback = True
-        analyst_reliable = False
-        actions.append("Target set to consensus median (data gaps; DCF excluded if rejected)")
+        if _is_peer_count_gap_only(gaps) and "Comps" in active and methods.get("Comps"):
+            actions.append("Thin peer set: keeping Comps-anchored weighted blend")
+        else:
+            target_price = _consensus_target(methods, excluded)
+            weights = {}
+            used_median_fallback = True
+            analyst_reliable = False
+            actions.append("Target set to consensus median (data gaps; DCF excluded if rejected)")
+        diff_pct = _method_upside_pct(target_price, current) or 0
 
     consensus = _consensus_blend_prices(methods, excluded)
     cluster = _cluster_method_prices(methods, excluded)
@@ -1927,8 +1966,9 @@ def _apply_valuation_audit(
             weights = {}
             used_median_fallback = True
             actions.append(f"Target from {len(cluster)}-method cluster (within 30% band)")
+        diff_pct = _method_upside_pct(target_price, current) or 0
 
-    if abs(_method_upside_pct(target_price, current) or 0) >= VALUATION_AUDIT_THRESHOLD_PCT:
+    if abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT:
         if len(active) == 1 and len(consensus) >= 2:
             sole = next(iter(active))
             # Only re-anchor when Analyst alone drives an extreme move (stale consensus risk).
@@ -1942,6 +1982,7 @@ def _apply_valuation_audit(
                     + f"; Audit: sole active method >{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price"
                 )
                 actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: consensus blend applied")
+                diff_pct = _method_upside_pct(target_price, current) or 0
 
         method_pool = {k: v for k, v in methods.items() if v in cluster} if cluster else {
             k: v for k, v in methods.items() if v in consensus
@@ -1960,6 +2001,7 @@ def _apply_valuation_audit(
                 weights = {}
                 used_median_fallback = True
                 actions.append("High upside with <2 confirming methods: capped at consensus median")
+                diff_pct = _method_upside_pct(target_price, current) or 0
 
     capped, was_capped = _cap_target_sanity(target_price, current)
     if was_capped and capped is not None and _should_apply_sanity_cap(
@@ -1968,6 +2010,7 @@ def _apply_valuation_audit(
         target_price = capped
         weights = {}
         used_median_fallback = True
+        sanity_cap_applied = True
         actions.append(f"Target capped at ±{TARGET_SANITY_CAP_PCT:.0f}% vs price (model dispersion)")
 
     if actions:
@@ -1976,6 +2019,7 @@ def _apply_valuation_audit(
     return (
         target_price, weights, excluded, used_median_fallback,
         dcf_reliable, comps_reliable, analyst_reliable, gaps, actions,
+        sanity_cap_applied,
     )
 
 
@@ -2127,12 +2171,13 @@ def build_valuation_summary(
     audit_triggered = False
     audit_notes: list[str] = []
     data_gaps: list[str] = []
+    sanity_cap_applied = False
     if target_price and current and _needs_valuation_audit(target_price, current, methods):
         audit_triggered = True
         (
             target_price, weights, excluded, used_median_fallback,
             dcf_reliable, comps_reliable, analyst_reliable,
-            data_gaps, audit_notes,
+            data_gaps, audit_notes, sanity_cap_applied,
         ) = _apply_valuation_audit(
             data, summary, comp_analysis, methods, active, excluded,
             target_price, current, weights, used_median_fallback,
@@ -2143,30 +2188,18 @@ def build_valuation_summary(
         comps_reliable = comps_reliable or ("Comps" in weights and weights["Comps"] > 0)
         analyst_reliable = analyst_reliable or ("Analyst" in weights and weights["Analyst"] > 0)
 
-    target_was_capped = False
-    if (
-        audit_triggered
-        and pre_audit_target
-        and target_price
-        and current > 0
-        and abs((pre_audit_target / current - 1) * 100) > TARGET_SANITY_CAP_PCT
-        and abs((target_price / current - 1) * 100) <= TARGET_SANITY_CAP_PCT + 0.5
-    ):
-        target_was_capped = True
+    target_was_capped = sanity_cap_applied if audit_triggered else False
 
     if target_price and current:
         diff_pct = (target_price / current - 1) * 100
+        confirming_methods = _effective_confirming_methods(methods, weights, excluded, active)
         rec = _recommendation_from_upside(
-            diff_pct, active, current, used_median_fallback, audit_triggered,
+            diff_pct, confirming_methods, current, used_median_fallback, audit_triggered,
             target_was_capped, comps_reliable,
         )
-        if (
-            summary.ticker.upper() in {t.upper() for t in SUMMARY_INCLUDE_TICKERS}
-            and not comps_t
-            and not dcf_t
-            and ("OVERWEIGHT" in rec.upper() or "BUY" in rec.upper())
-        ):
-            rec = "HOLD - Illustrative ticker; no verified comps/DCF"
+        if summary.ticker.upper() in {t.upper() for t in SUMMARY_INCLUDE_TICKERS}:
+            if "OVERWEIGHT" in rec.upper() or "BUY" in rec.upper():
+                rec = "HOLD - Illustrative ticker; model for visibility only"
         if audit_triggered and data_gaps and abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT:
             if not (target_was_capped and comps_reliable):
                 rec = "HOLD - Extreme move; incomplete inputs (see audit)"
@@ -2191,6 +2224,7 @@ def build_valuation_summary(
         pre_audit_weights=pre_audit_weights,
         target_was_capped=target_was_capped,
         used_fallback_blend=used_fallback_blend,
+        used_median_fallback=used_median_fallback,
         valuation_profile=profile_key,
         valuation_profile_label=str(profile.get("label", profile_key)),
         valuation_audit_triggered=audit_triggered,
@@ -2209,6 +2243,8 @@ def _effective_display_weights(valuation: ValuationSummary) -> dict[str, float]:
     """Weights shown in PDF/Excel when audit cap clears final blend_weights."""
     if valuation.blend_weights:
         return dict(valuation.blend_weights)
+    if valuation.used_median_fallback and valuation.target_price:
+        return {"Median": 1.0}
     if valuation.pre_audit_weights:
         return dict(valuation.pre_audit_weights)
     if (
@@ -2370,7 +2406,7 @@ def build_valuation_crosscheck_table(
             f"Peer median P/S {_fmt_ratio(comps.peer_median_ps)}",
         ])
     rows.append([
-        "Comps — Blended (avg. of available multiples)",
+        "Comps — Blended (median of multiples + uplift anchors)",
         f"${valuation.comps_target:.2f}" if valuation.comps_target else "N/A",
         _upside_str(valuation.comps_target, current),
         _weight_cell("Comps"),

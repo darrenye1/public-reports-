@@ -44,10 +44,10 @@ window.SUMMARY_ROWS = [
     "PE": "25.715702",
     "Revenue_Growth_Pct": "21.8",
     "Operating_Margin_Pct": "36.120999999999995",
-    "DCF_Fair_Value": "258.0606546203892",
+    "DCF_Fair_Value": "",
     "Comps_Fair_Value": "306.25666666666666",
-    "Target_Price": "297.7514880702647",
-    "Upside_Pct": "-11.748573440153908",
+    "Target_Price": "306.25666666666666",
+    "Upside_Pct": "-9.227698904334247",
     "Rating": "UNDERWEIGHT",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
@@ -99,7 +99,7 @@ window.SUMMARY_ROWS = [
     "Comps_Fair_Value": "175.32666666666668",
     "Target_Price": "177.82133333333334",
     "Upside_Pct": "16.04864147577716",
-    "Rating": "OVERWEIGHT",
+    "Rating": "HOLD",
     "Financial_Health": "Strong revenue growth; compressed margins."
   },
   {
@@ -146,11 +146,11 @@ window.SUMMARY_ROWS = [
     "PE": "20.001818",
     "Revenue_Growth_Pct": "33.1",
     "Operating_Margin_Pct": "40.617",
-    "DCF_Fair_Value": "473.70383570874526",
+    "DCF_Fair_Value": "",
     "Comps_Fair_Value": "622.2533333333333",
-    "Target_Price": "596.0387161054648",
-    "Upside_Pct": "8.321438637976343",
-    "Rating": "HOLD",
+    "Target_Price": "622.2533333333333",
+    "Upside_Pct": "13.085567166439493",
+    "Rating": "OVERWEIGHT",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -198,9 +198,9 @@ window.SUMMARY_ROWS = [
     "Revenue_Growth_Pct": "4.3999999999999995",
     "Operating_Margin_Pct": "14.352",
     "DCF_Fair_Value": "",
-    "Comps_Fair_Value": "501.64765006125805",
-    "Target_Price": "510.05619253369196",
-    "Upside_Pct": "2.2853632803296664",
+    "Comps_Fair_Value": "513.0619667891827",
+    "Target_Price": "516.3340667340506",
+    "Upside_Pct": "3.544312103246816",
     "Rating": "HOLD",
     "Financial_Health": "Modest revenue growth; healthy margins; conservative balance sheet; positive fcf generation."
   },
@@ -232,10 +232,10 @@ window.SUMMARY_ROWS = [
     "Revenue_Growth_Pct": "12.7",
     "Operating_Margin_Pct": "43.741",
     "DCF_Fair_Value": "",
-    "Comps_Fair_Value": "317.2",
-    "Target_Price": "323.76905",
-    "Upside_Pct": "-1.6049080686825756",
-    "Rating": "HOLD",
+    "Comps_Fair_Value": "207.86453029874716",
+    "Target_Price": "241.7674477240604",
+    "Upside_Pct": "-26.525619898477316",
+    "Rating": "SELL",
     "Financial_Health": "Strong revenue growth; high operating margins."
   },
   {
@@ -250,8 +250,8 @@ window.SUMMARY_ROWS = [
     "Operating_Margin_Pct": "14.396",
     "DCF_Fair_Value": "",
     "Comps_Fair_Value": "406.02333333333337",
-    "Target_Price": "422.67730509803926",
-    "Upside_Pct": "-18.962133306867745",
+    "Target_Price": "420.17920933333335",
+    "Upside_Pct": "-19.44108107417207",
     "Rating": "SELL",
     "Financial_Health": "Strong revenue growth; healthy margins; conservative balance sheet; positive fcf generation."
   },
@@ -266,9 +266,9 @@ window.SUMMARY_ROWS = [
     "Revenue_Growth_Pct": "17.1",
     "Operating_Margin_Pct": "67.34599999999999",
     "DCF_Fair_Value": "472.16814633920217",
-    "Comps_Fair_Value": "329.9266666666667",
-    "Target_Price": "397.1593015356809",
-    "Upside_Pct": "18.121316222728765",
+    "Comps_Fair_Value": "330.01376498749994",
+    "Target_Price": "397.19849578005585",
+    "Upside_Pct": "18.13297319693539",
     "Rating": "OVERWEIGHT",
     "Financial_Health": "Strong revenue growth; high operating margins; strong roe; positive fcf generation."
   },
@@ -318,8 +318,8 @@ window.SUMMARY_ROWS = [
     "Operating_Margin_Pct": "18.180001",
     "DCF_Fair_Value": "",
     "Comps_Fair_Value": "799.55600767844",
-    "Target_Price": "875.29050383922",
-    "Upside_Pct": "-12.248939432843088",
+    "Target_Price": "829.849806142752",
+    "Upside_Pct": "-16.80453485891786",
     "Rating": "SELL",
     "Financial_Health": "Strong revenue growth; healthy margins; elevated leverage; strong roe; positive fcf generation."
   },
@@ -337,7 +337,7 @@ window.SUMMARY_ROWS = [
     "Comps_Fair_Value": "167.75330208346864",
     "Target_Price": "159.6388236667749",
     "Upside_Pct": "40.31715185617906",
-    "Rating": "OVERWEIGHT",
+    "Rating": "BUY",
     "Financial_Health": "Strong revenue growth; high operating margins; strong roe; positive fcf generation."
   }
 ];
