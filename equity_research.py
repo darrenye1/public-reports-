@@ -195,8 +195,14 @@ VALUATION_PROFILES: dict[str, dict[str, Any]] = {
     "high_growth_tech": {
         "label": "High-growth technology",
         "dcf_mode": "fcfe_single",
-        "comps": ("ps", "ev_ebitda", "pe"),
+        "comps": ("ps", "ev_ebitda"),
         "weights": {"DCF": 0.15, "Comps": 0.70, "Analyst": 0.15},
+    },
+    "financial_conglomerate": {
+        "label": "Diversified holding / conglomerate",
+        "dcf_mode": None,
+        "comps": (),
+        "weights": {"Analyst": 1.0},
     },
 }
 VALUATION_AUDIT_THRESHOLD_PCT = 30.0
@@ -348,6 +354,7 @@ class ValuationSummary:
     blend_weights: dict[str, float] = field(default_factory=dict)
     pre_audit_target: float | None = None
     pre_audit_weights: dict[str, float] = field(default_factory=dict)
+    target_was_capped: bool = False
     valuation_profile: str = "default"
     valuation_profile_label: str = ""
     valuation_audit_triggered: bool = False
@@ -674,6 +681,10 @@ def resolve_valuation_profile(summary: FinancialSummary) -> str:
 
     if "bank" in industry:
         return "financial_bank"
+    if "insurance" in industry and "diversified" in industry:
+        return "financial_conglomerate"
+    if summary.ticker.upper() in ("BRK-B", "BRK-A", "BRK.B", "BRK.A"):
+        return "financial_conglomerate"
     if any(k in industry for k in ("insurance", "reinsurance")):
         return "financial_insurance"
     if any(k in industry for k in ("capital markets", "asset management", "financial conglomerate")):
@@ -1747,16 +1758,17 @@ def _apply_valuation_audit(
     if abs(_method_upside_pct(target_price, current) or 0) >= VALUATION_AUDIT_THRESHOLD_PCT:
         if len(active) == 1 and len(consensus) >= 2:
             sole = next(iter(active))
-            target_price = statistics.median(consensus)
-            weights = {}
-            used_median_fallback = True
+            # Only re-anchor when Analyst alone drives an extreme move (stale consensus risk).
             if sole == "Analyst":
+                target_price = statistics.median(consensus)
+                weights = {}
+                used_median_fallback = True
                 analyst_reliable = False
-            excluded[sole] = (
-                excluded.get(sole, "Included in blend")
-                + f"; Audit: sole active method >{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price"
-            )
-            actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: consensus blend applied")
+                excluded[sole] = (
+                    excluded.get(sole, "Included in blend")
+                    + f"; Audit: sole active method >{VALUATION_AUDIT_THRESHOLD_PCT:.0f}% vs price"
+                )
+                actions.append(f"Solo {sole} exceeded ±{VALUATION_AUDIT_THRESHOLD_PCT:.0f}%: consensus blend applied")
 
         method_pool = {k: v for k, v in methods.items() if v in cluster} if cluster else {
             k: v for k, v in methods.items() if v in consensus
@@ -1799,6 +1811,7 @@ def _recommendation_from_upside(
     used_median_fallback: bool,
     audit_triggered: bool = False,
     target_was_capped: bool = False,
+    comps_reliable: bool = False,
 ) -> str:
     confirming = _count_upside_methods(active, current)
     non_analyst_confirming = _count_upside_methods(
@@ -1807,12 +1820,10 @@ def _recommendation_from_upside(
 
     if target_was_capped and abs(diff_pct) >= TARGET_SANITY_CAP_PCT - 0.5:
         if diff_pct > 0:
-            if non_analyst_confirming >= BUY_MIN_CONFIRMING_METHODS:
-                return "OVERWEIGHT - Upside capped; comps/models confirm direction"
-            return "HOLD - Target audit-capped; analyst may lag price"
-        if non_analyst_confirming == 0 and confirming == 0:
-            return "UNDERWEIGHT - Downside capped; limited model confirmation"
-        return "HOLD - Target audit-capped; mixed model signals"
+            if comps_reliable or non_analyst_confirming >= 1:
+                return "OVERWEIGHT - Upside capped at +40% (comps-anchored)"
+            return "HOLD - Target audit-capped; limited model confirmation"
+        return "UNDERWEIGHT - Downside capped at -40%"
 
     if diff_pct > 20:
         if confirming >= BUY_MIN_CONFIRMING_METHODS and not used_median_fallback:
@@ -1874,6 +1885,24 @@ def build_valuation_summary(
             excluded["Analyst"] = analyst_reason
             active.pop("Analyst", None)
 
+    if not active:
+        return ValuationSummary(
+            dcf=dcf,
+            comps=comps,
+            recommendation="HOLD - Insufficient valuation data",
+            target_price=None,
+            dcf_target=dcf_t,
+            comps_target=comps_t,
+            analyst_target=analyst_t,
+            dcf_reliable=False,
+            dcf_exclusion_reason=excluded.get("DCF", ""),
+            comps_reliable=False,
+            analyst_reliable=False,
+            excluded_methods=excluded,
+            valuation_profile=profile_key,
+            valuation_profile_label=str(profile.get("label", profile_key)),
+        )
+
     dcf_reliable = "DCF" in active
     dcf_reason = excluded.get("DCF", "")
     comps_reliable = "Comps" in active
@@ -1902,24 +1931,13 @@ def build_valuation_summary(
         excluded = dict(excluded)
         excluded["Analyst"] = "Consensus with Comps (excluded low DCF not used in blend)"
 
-    # Extreme upside on a single active method: anchor to Comps/Analyst consensus.
-    if (
-        target_price
-        and current > 0
-        and len(active) == 1
-        and not used_median_fallback
-        and len(methods) >= 2
-        and (target_price / current - 1) * 100 > EXTREME_UPSIDE_PCT
-    ):
-        target_price = _consensus_target(methods, excluded)
-        weights = {}
-        used_median_fallback = True
+    # Capture blend before audit (audit may cap target or clear weights for display).
+    pre_audit_target = target_price
+    pre_audit_weights = dict(weights)
 
     audit_triggered = False
     audit_notes: list[str] = []
     data_gaps: list[str] = []
-    pre_audit_target = target_price
-    pre_audit_weights = dict(weights)
     if target_price and current and _needs_valuation_audit(target_price, current, methods):
         audit_triggered = True
         (
@@ -1945,10 +1963,19 @@ def build_valuation_summary(
     if target_price and current:
         diff_pct = (target_price / current - 1) * 100
         rec = _recommendation_from_upside(
-            diff_pct, active, current, used_median_fallback, audit_triggered, target_was_capped,
+            diff_pct, active, current, used_median_fallback, audit_triggered,
+            target_was_capped, comps_reliable,
         )
+        if (
+            summary.ticker.upper() in {t.upper() for t in SUMMARY_INCLUDE_TICKERS}
+            and not comps_t
+            and not dcf_t
+            and ("OVERWEIGHT" in rec.upper() or "BUY" in rec.upper())
+        ):
+            rec = "HOLD - Illustrative ticker; no verified comps/DCF"
         if audit_triggered and data_gaps and abs(diff_pct) >= VALUATION_AUDIT_THRESHOLD_PCT:
-            rec = "HOLD - Extreme move; incomplete inputs (see audit)"
+            if not (target_was_capped and comps_reliable):
+                rec = "HOLD - Extreme move; incomplete inputs (see audit)"
     else:
         rec = "HOLD - Insufficient valuation data"
 
@@ -1968,6 +1995,7 @@ def build_valuation_summary(
         blend_weights=weights,
         pre_audit_target=pre_audit_target,
         pre_audit_weights=pre_audit_weights,
+        target_was_capped=target_was_capped,
         valuation_profile=profile_key,
         valuation_profile_label=str(profile.get("label", profile_key)),
         valuation_audit_triggered=audit_triggered,
@@ -1980,6 +2008,34 @@ def _upside_str(price: float | None, current: float) -> str:
     if not price or not current or current <= 0:
         return "N/A"
     return _fmt_pct((price / current - 1) * 100, signed=True)
+
+
+def _effective_display_weights(valuation: ValuationSummary) -> dict[str, float]:
+    """Weights shown in PDF/Excel when audit cap clears final blend_weights."""
+    if valuation.blend_weights:
+        return dict(valuation.blend_weights)
+    if valuation.pre_audit_weights:
+        return dict(valuation.pre_audit_weights)
+    if (
+        valuation.comps_reliable
+        and valuation.pre_audit_target
+        and valuation.comps_target
+        and valuation.comps_target > 0
+        and abs(valuation.pre_audit_target - valuation.comps_target) / valuation.comps_target < 0.03
+    ):
+        return {"Comps": 1.0}
+    return {}
+
+
+def _blend_method_note(valuation: ValuationSummary) -> str:
+    weights = _effective_display_weights(valuation)
+    if not weights:
+        return "multi-method"
+    parts = [f"{k} {v:.0%}" for k, v in weights.items()]
+    note = " + ".join(parts)
+    if valuation.target_was_capped and valuation.pre_audit_target and valuation.target_price:
+        note += f" (pre-cap ${valuation.pre_audit_target:.2f} -> ${valuation.target_price:.2f})"
+    return note
 
 
 def build_valuation_crosscheck_table(
@@ -1999,9 +2055,7 @@ def build_valuation_crosscheck_table(
         if valuation.valuation_profile
         else ""
     )
-    display_weights = valuation.blend_weights or (
-        valuation.pre_audit_weights if valuation.valuation_audit_triggered else {}
-    )
+    display_weights = _effective_display_weights(valuation)
 
     def _weight_cell(method: str) -> str:
         if method in valuation.blend_weights:
@@ -2009,10 +2063,14 @@ def build_valuation_crosscheck_table(
         if method in display_weights:
             suffix = " (pre-cap)" if valuation.valuation_audit_triggered and not valuation.blend_weights else ""
             return f"{display_weights[method]:.0%}{suffix}"
-        return "0% (excluded)"
+        if method in valuation.excluded_methods and method not in _BLEND_SKIP_KEYS:
+            return "0% (excluded)"
+        return "—"
 
     def _note_cell(method: str) -> str:
         if method in valuation.excluded_methods and method not in _BLEND_SKIP_KEYS:
+            if method == "Comps" and valuation.comps_reliable:
+                return "Included in pre-audit blend; final target audit-capped"
             return valuation.excluded_methods[method]
         if method in valuation.blend_weights:
             return "Included in blend"
@@ -2041,6 +2099,11 @@ def build_valuation_crosscheck_table(
             elif valuation.valuation_audit_triggered:
                 parts += " (pre-cap blend)"
             return parts
+        if valuation.pre_audit_target and valuation.target_price:
+            return (
+                f"Pre-cap ${valuation.pre_audit_target:.2f}"
+                f" -> capped ${valuation.target_price:.2f}"
+            )
         return "Median / single method"
 
     rows.append([
@@ -3000,10 +3063,11 @@ def build_investment_highlights(
     price = summary.current_price
     if target and price and price > 0:
         pct = (target / price - 1) * 100
-        blend_note = "analyst-led" if valuation.blend_weights.get("Analyst") == 1 else "multi-method"
+        blend_note = _blend_method_note(valuation)
+        cap_note = " (audit-capped)" if valuation.target_was_capped else ""
         bullets.append(
             f"<b>{rating}</b> — blended target ${target:.2f} ({pct:+.1f}% vs ${price:.2f}); "
-            f"{blend_note} valuation after outlier checks."
+            f"{blend_note} valuation after outlier checks{cap_note}."
         )
     else:
         bullets.append(f"<b>{rating}</b> — blended target pending; see valuation cross-check on page 2.")
@@ -3017,8 +3081,11 @@ def build_investment_highlights(
     if not valuation.dcf_reliable and valuation.dcf_target:
         bullets.append(
             "Simon FCFE DCF not used in target (low FCFE yield / growth equity); "
-            "rely on comps and analyst consensus where shown."
+            "rely on comps where shown; analyst used only if not stale."
         )
+    elif not valuation.analyst_reliable and valuation.analyst_target:
+        reason = valuation.excluded_methods.get("Analyst", "stale vs price/comps")
+        bullets.append(f"Analyst consensus excluded from blend ({reason}).")
     elif industry.key_trends and len(bullets) < 3:
         bullets.append(industry.key_trends[0])
     elif industry.risks and len(bullets) < 3:
@@ -3724,10 +3791,11 @@ def _add_valuation_summary_sheet(
         ws.cell(row=i, column=2).number_format = num_fmt_px
         ws.cell(row=i, column=3, value=f"=IF(OR(B{i}=\"\",{current}=\"\",{current}=0),\"\",B{i}/{current}-1)")
         ws.cell(row=i, column=3).number_format = num_fmt_pct
-        ws.cell(row=i, column=4, value=base_w[key])
+        ws.cell(row=i, column=4, value=base_w.get(key, 0.0))
         ws.cell(row=i, column=4).number_format = num_fmt_pct
-        eff = valuation.blend_weights.get(key, 0.0)
-        ws.cell(row=i, column=5, value=eff if key in valuation.blend_weights else 0.0)
+        eff_weights = _effective_display_weights(valuation)
+        eff = eff_weights.get(key, 0.0)
+        ws.cell(row=i, column=5, value=eff)
         ws.cell(row=i, column=5).number_format = num_fmt_pct
         ws.cell(row=i, column=6, value=note or ("Included in blend" if eff else "Excluded"))
 
