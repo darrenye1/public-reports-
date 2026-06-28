@@ -246,7 +246,8 @@ GREEN = colors.HexColor("#276749")
 RED = colors.HexColor("#c53030")
 PDF_PAGE_MARGIN = 0.42 * inch
 PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
-PDF_CHART_ASPECT = 7.2 / 2.05  # width / height for price chart image
+PDF_CHART_SIDE_W_RATIO = 0.40
+PDF_CHART_SIDE_H = 1.48 * inch
 
 
 # ---------------------------------------------------------------------------
@@ -3218,33 +3219,40 @@ def run_batch_top20(
 # ---------------------------------------------------------------------------
 
 
-def _price_chart(history, ticker: str, technical: TechnicalSummary | None = None) -> io.BytesIO | None:
+def _price_chart(
+    history,
+    ticker: str,
+    technical: TechnicalSummary | None = None,
+    *,
+    fig_width: float = 4.6,
+    fig_height: float = 1.48,
+) -> io.BytesIO | None:
     if history is None or history.empty:
         return None
     close = history["Close"].dropna()
     if close.empty:
         return None
-    fig, ax = plt.subplots(figsize=(7.2, 2.05), dpi=150)
+    compact = fig_width < 6.0
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=150)
     plot_hist = close.tail(252) if len(close) > 252 else close
-    ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.6, label="Price")
+    ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.5, label="Price")
     if len(close) >= 42:
         sma42 = close.rolling(42).mean().tail(len(plot_hist))
-        ax.plot(sma42.index, sma42.values, color="#f59e0b", linewidth=1.2, label="SMA 42")
+        ax.plot(sma42.index, sma42.values, color="#f59e0b", linewidth=1.1, label="SMA 42")
     if len(close) >= 252:
         sma252 = close.rolling(252).mean().tail(len(plot_hist))
-        ax.plot(sma252.index, sma252.values, color="#a78bfa", linewidth=1.2, label="SMA 252")
-    title = f"{ticker} — Price & SMA (252D)"
+        ax.plot(sma252.index, sma252.values, color="#a78bfa", linewidth=1.1, label="SMA 252")
+    title = f"{ticker} · Price & SMA"
     if technical and technical.golden_cross:
-        title += " · Golden Cross"
-    ax.set_title(title, fontsize=10, fontweight="bold", pad=6, color="#1a365d")
-    ax.tick_params(labelsize=7.5, colors="#4a5568")
+        title += " · GC"
+    ax.set_title(title, fontsize=8 if compact else 10, fontweight="bold", pad=4, color="#1a365d")
+    ax.tick_params(labelsize=6.5 if compact else 7.5, colors="#4a5568")
     ax.grid(True, alpha=0.25, linewidth=0.6)
-    ax.legend(fontsize=7, loc="upper left", framealpha=0.92, edgecolor="#cbd5e0")
+    ax.legend(fontsize=5.5 if compact else 7, loc="upper left", framealpha=0.92, edgecolor="#cbd5e0")
     ax.set_facecolor("#fafafa")
     fig.patch.set_facecolor("white")
     ax.margins(x=0.02)
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha="center")
-    plt.tight_layout(pad=0.5)
+    plt.tight_layout(pad=0.35)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -3584,7 +3592,8 @@ def generate_pdf_report(
     )
 
     content_w = PDF_CONTENT_W
-    chart_h = content_w / PDF_CHART_ASPECT
+    chart_w = content_w * PDF_CHART_SIDE_W_RATIO
+    key_w = content_w - chart_w - 0.08 * inch
 
     styles = getSampleStyleSheet()
     report_label = ParagraphStyle(
@@ -3666,11 +3675,11 @@ def generate_pdf_report(
             f"{sig.action_note}",
             5.2,
         ))
-    elements.append(Spacer(1, 3))
+    elements.append(Spacer(1, 2))
 
     elements.append(_section_title("Investment Thesis / Executive Summary"))
     elements.append(_body(build_executive_summary_pdf(summary, industry, valuation), 5.3))
-    elements.append(Spacer(1, 3))
+    elements.append(Spacer(1, 2))
 
     shares = get_shares_outstanding(data.info) if data and data.info else None
     pb = get_info_value(data.info, "priceToBook") if data else None
@@ -3693,48 +3702,50 @@ def generate_pdf_report(
     ]
     key_table = Table(
         key_data_rows,
-        colWidths=[content_w * 0.22, content_w * 0.28, content_w * 0.22, content_w * 0.28],
+        colWidths=[key_w * 0.24, key_w * 0.26, key_w * 0.24, key_w * 0.26],
     )
     key_table.setStyle(_table_style_header())
 
     tech = full.technical if full else None
-    chart_buf = _price_chart(history, summary.ticker, tech)
-    elements.append(_section_title("Key Data & Market Highlights"))
-    elements.append(key_table)
+    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=4.6, fig_height=1.48)
+    elements.append(_section_title("Key Data & Price Trend"))
     if chart_buf:
-        elements.append(Spacer(1, 3))
-        elements.append(_section_title("Price Trend · SMA 42 / 252"))
-        chart_img = Image(chart_buf, width=content_w, height=chart_h)
-        chart_wrap = Table([[chart_img]], colWidths=[content_w])
-        chart_wrap.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        chart_img = Image(chart_buf, width=chart_w, height=PDF_CHART_SIDE_H)
+        data_chart_row = Table(
+            [[key_table, chart_img]],
+            colWidths=[key_w, chart_w],
+        )
+        data_chart_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 4),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
         ]))
-        elements.append(chart_wrap)
+        elements.append(data_chart_row)
+    else:
+        elements.append(key_table)
+
+    elements.append(PageBreak())
+
+    page_hdr = ParagraphStyle(
+        "PageHdr", fontName="Helvetica-Bold", fontSize=9, textColor=NAVY, spaceAfter=2,
+    )
+    elements.append(Paragraph(
+        f"<b>Page 2 of 3</b> · {summary.company_name} ({summary.ticker}) · "
+        f"Financials · Statement Analysis · Technical · Quantitative · {data_as_of}",
+        page_hdr,
+    ))
 
     if data:
         fv_rows = build_financial_valuation_summary_table(data, summary)
         if fv_rows:
-            elements.append(Spacer(1, 3))
+            elements.append(Spacer(1, 2))
             elements.append(_section_title("Financial & Valuation Summary"))
-            elements.append(_body("(USD millions except per-share; E = forecast)", 5))
+            elements.append(_body("(USD millions except per-share; A = actual, E = forecast)", 5))
             ncols = len(fv_rows[0])
-            metric_w = 1.42 * inch
+            metric_w = 1.38 * inch
             year_w = (content_w - metric_w) / max(ncols - 1, 1)
             elements.append(_make_styled_table(fv_rows, [metric_w] + [year_w] * (ncols - 1)))
-
-    elements.append(PageBreak())
-
-    page2_hdr = ParagraphStyle(
-        "Page2Hdr", fontName="Helvetica-Bold", fontSize=9, textColor=NAVY, spaceAfter=2,
-    )
-    elements.append(Paragraph(
-        f"<b>Page 2 of 3</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Financial Statement · Technical · Quantitative · {data_as_of}",
-        page2_hdr,
-    ))
 
     if full:
         elements.append(Spacer(1, 2))
@@ -3746,26 +3757,47 @@ def generate_pdf_report(
             wrap_col=2,
         ))
         elements.append(Spacer(1, 2))
-        elements.append(_section_title("Technical Analysis (SMA 42/252)"))
-        elements.append(_make_styled_table(
+        elements.append(_section_title("Technical & Quantitative Analysis"))
+        half_w = content_w * 0.49
+        ta_table = _make_styled_table(
             build_technical_table(full.technical),
-            [content_w * 0.22, content_w * 0.18, content_w * 0.60],
+            [half_w * 0.30, half_w * 0.22, half_w * 0.48],
             wrap_col=2,
-        ))
-        elements.append(Spacer(1, 2))
-        elements.append(_section_title("Quantitative Analysis"))
-        elements.append(_make_styled_table(
+            allow_split=True,
+        )
+        quant_table = _make_styled_table(
             build_quant_table(full.quant, full.backtest),
-            [content_w * 0.24, content_w * 0.20, content_w * 0.56],
+            [half_w * 0.32, half_w * 0.24, half_w * 0.44],
             wrap_col=2,
-        ))
+            allow_split=True,
+        )
+        ta_quant_row = Table([[ta_table, quant_table]], colWidths=[half_w, half_w])
+        ta_quant_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 3),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ]))
+        elements.append(ta_quant_row)
+        elements.append(Spacer(1, 2))
+        industry_snap = _truncate(industry.business_summary, 320)
+        snap_text = (
+            f"<b>Industry Snapshot</b> — {summary.sector} / {summary.industry}. "
+            f"{industry_snap}"
+        )
+        if industry.key_trends:
+            snap_text += "<br/><b>Trends:</b> " + "; ".join(industry.key_trends[:3])
+        if industry.risks:
+            snap_text += "<br/><b>Risks:</b> " + "; ".join(industry.risks[:2])
+        elements.append(_section_title("Industry Context"))
+        elements.append(_body(snap_text, 5.3))
 
     elements.append(PageBreak())
 
     elements.append(Paragraph(
         f"<b>Page 3 of 3</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Valuation · Industry · Peers · {fiscal_period}",
-        page2_hdr,
+        f"Valuation · Peers · {fiscal_period}",
+        page_hdr,
     ))
 
     cross_rows = build_valuation_crosscheck_table(valuation, summary)
@@ -3787,11 +3819,11 @@ def generate_pdf_report(
     ))
     elements.append(Spacer(1, 4))
 
-    industry_overview = _truncate(industry.business_summary, 420)
+    industry_overview = _truncate(industry.business_summary, 280)
     industry_text = (
-        f"<b>1. Industry Overview</b><br/>{industry_overview}<br/><br/>"
-        f"<b>2. Key Trends</b><br/>" + "<br/>".join(f"• {t}" for t in industry.key_trends) + "<br/><br/>"
-        f"<b>3. Risk Factors</b><br/>" + "<br/>".join(f"• {r}" for r in industry.risks)
+        f"<b>Industry Overview</b><br/>{industry_overview}<br/><br/>"
+        f"<b>Key Trends</b><br/>" + "<br/>".join(f"• {t}" for t in industry.key_trends[:4]) + "<br/><br/>"
+        f"<b>Risk Factors</b><br/>" + "<br/>".join(f"• {r}" for r in industry.risks[:4])
     )
 
     comp_rows = [[
@@ -3821,10 +3853,10 @@ def generate_pdf_report(
     sty.add("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ebf8ff"))
     comp_table.setStyle(sty)
 
-    elements.append(_section_title("Industry Analysis"))
+    elements.append(_section_title("Industry & Competitive Landscape"))
     elements.append(_body(industry_text, 5.5))
-    elements.append(Spacer(1, 4))
-    elements.append(_section_title("Competitor Analysis"))
+    elements.append(Spacer(1, 3))
+    elements.append(_section_title("Peer Comparison"))
     comp_table.splitByRow = 0
     elements.append(comp_table)
     elements.append(Spacer(1, 1))

@@ -219,7 +219,7 @@
       overflow-x:auto;border:1px solid var(--border);border-radius:10px;
       box-shadow:0 0 30px rgba(0,0,0,.25);
     }
-    .table-wrap table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--bg-elevated);min-width:1400px}
+    .table-wrap table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--bg-elevated);min-width:980px}
     .table-wrap th,.table-wrap td{padding:8px 10px;border-bottom:1px solid var(--border-soft);white-space:nowrap;text-align:left}
     .table-wrap th{
       font-family:var(--mono);background:rgba(34,211,238,.06);color:var(--accent);
@@ -230,7 +230,11 @@
     .table-wrap tr:last-child td{border-bottom:none}
     .table-wrap tr.clickable{cursor:pointer}
     .table-wrap tr.clickable:hover td,.table-wrap tr:hover td{background:rgba(34,211,238,.04)}
-    .table-wrap td.company{max-width:200px;overflow:hidden;text-overflow:ellipsis;color:#cbd5e1}
+    .table-wrap td.company{max-width:220px;overflow:hidden;text-overflow:ellipsis;color:#cbd5e1;line-height:1.35}
+    .cell-sub{font-family:var(--mono);font-size:9px;color:var(--muted);display:block;margin-top:2px;letter-spacing:.02em}
+    .pillars-cell{white-space:normal;line-height:1.5}
+    .pillar-fsa{font-size:10px;color:#94a3b8;margin:0 4px}
+    .val-cell .cell-sub{font-size:9px;margin-top:3px}
     .table-wrap td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;color:#e2e8f0}
     .up-good{color:var(--good)} .up-bad{color:var(--bad)} .up-warn{color:var(--warn)}
     .badge{
@@ -574,19 +578,68 @@
 
   <script>
     const COLS = [
-      "Rank","Ticker","Company","Sector","Market_Cap","Price",
-      "Composite_Rating","Confluence_Pct","TA_Signal","Quant_Score","FSA_Rating",
-      "DCF_Fair_Value","Comps_Fair_Value","Target_Price","Upside_Pct","Rating","Golden_Cross"
+      "Rank", "Ticker", "Company", "Market_Cap", "Price",
+      "Composite_Rating", "Pillars", "Valuation"
     ];
     const LABELS = {
-      Rank:"#", Ticker:"Ticker", Company:"Company", Sector:"Sector",
-      Market_Cap:"Mkt Cap", Price:"Price",
-      Composite_Rating:"Composite", Confluence_Pct:"Confluence",
-      TA_Signal:"TA", Quant_Score:"Quant", FSA_Rating:"FSA",
-      DCF_Fair_Value:"DCF", Comps_Fair_Value:"Comps",
-      Target_Price:"Target", Upside_Pct:"Upside", Rating:"Valuation",
-      Golden_Cross:"Golden X"
+      Rank: "#", Ticker: "Ticker", Company: "Company",
+      Market_Cap: "Mkt Cap", Price: "Price",
+      Composite_Rating: "Composite",
+      Pillars: "TA · FSA · Quant",
+      Valuation: "Target / Upside"
     };
+    const SORT_KEY = {
+      Pillars: "Quant_Score",
+      Valuation: "Upside_Pct",
+      Composite_Rating: "Confluence_Pct"
+    };
+    function sortKey(col) {
+      return SORT_KEY[col] || col;
+    }
+    function taShort(ta) {
+      const u = (ta || "").toUpperCase();
+      if (u === "BULLISH") return "Bull";
+      if (u === "BEARISH") return "Bear";
+      if (u === "NEUTRAL") return "Neut";
+      return u.slice(0, 5) || "—";
+    }
+    function fmtCompositeCell(row) {
+      const r = row.Composite_Rating || "N/A";
+      const conf = row.Confluence_Pct;
+      let sub = "";
+      if (conf !== "" && conf != null && !isNaN(+conf)) {
+        sub = "<span class=\"cell-sub\">" + (+conf).toFixed(0) + "% confluence</span>";
+      }
+      return "<td>" + ratingBadge(r) + sub + "</td>";
+    }
+    function fmtPillarsCell(row) {
+      const ta = taShort(row.TA_Signal);
+      const fsa = row.FSA_Rating || "—";
+      const q = row.Quant_Score;
+      let qHtml = "<span class=\"num\">—</span>";
+      if (q !== "" && q != null && !isNaN(+q)) {
+        const n = +q;
+        const cls = n >= 0.15 ? "up-good" : n <= -0.15 ? "up-bad" : "up-warn";
+        qHtml = "<span class=\"num " + cls + "\">" + (n >= 0 ? "+" : "") + n.toFixed(2) + "</span>";
+      }
+      const tip = "TA: " + (row.TA_Signal || "N/A")
+        + " · FSA: " + fsa
+        + " · Quant: " + (q !== "" && q != null && !isNaN(+q) ? (+q).toFixed(2) : "N/A");
+      return "<td class=\"pillars-cell\" title=\"" + tip.replace(/"/g, "") + "\">"
+        + ratingBadge(ta) + "<span class=\"pillar-fsa\">" + fsa + "</span>" + qHtml + "</td>";
+    }
+    function fmtValuationCell(row) {
+      const target = fmtMoney(row.Target_Price);
+      const upside = fmtPct(row.Upside_Pct);
+      const val = (row.Rating || "").toUpperCase();
+      const parts = ["Valuation: " + (val || "N/A")];
+      if (row.DCF_Fair_Value) parts.push("DCF " + fmtMoney(row.DCF_Fair_Value));
+      if (row.Comps_Fair_Value) parts.push("Comps " + fmtMoney(row.Comps_Fair_Value));
+      const sub = val && val !== (row.Composite_Rating || "").toUpperCase()
+        ? "<span class=\"cell-sub\">Val " + val + "</span>" : "";
+      return "<td class=\"val-cell num\" title=\"" + parts.join(" · ").replace(/"/g, "") + "\">"
+        + target + "<br/>" + upside + sub + "</td>";
+    }
     let allRows = [], sortCol = "Market_Cap", sortAsc = false;
 
     function reportHref(t) {
@@ -632,7 +685,7 @@
       return null;
     }
     function sortRows(rows) {
-      const key = sortCol, asc = sortAsc;
+      const key = sortKey(sortCol), asc = sortAsc;
       return rows.slice().sort(function(a, b) {
         const na = +a[key], nb = +b[key];
         if (!isNaN(na) && !isNaN(nb) && a[key] !== "" && b[key] !== "") return asc ? na - nb : nb - na;
@@ -661,15 +714,13 @@
       const tbody = document.querySelector("#summaryTable tbody");
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
         const arrow = sortCol === c ? (sortAsc ? " ^" : " v") : "";
-        const title = c === "DCF_Fair_Value"
-          ? " title=\"Shown only when DCF is included in target blend\""
-          : c === "Comps_Fair_Value"
-            ? " title=\"Shown only when comps are included in target blend\""
-            : c === "Composite_Rating"
-              ? " title=\"Blended signal: Valuation 45%, FSA 20%, TA 20%, Quant 15%\""
-              : c === "Rating"
-                ? " title=\"Valuation-only rating (DCF/comps/analyst)\""
-                : "";
+        const title = c === "Composite_Rating"
+          ? " title=\"Blended signal (Val 45%, FSA 20%, TA 20%, Quant 15%). Subtext = confluence %\""
+          : c === "Pillars"
+            ? " title=\"Technical · Financial statement · Quantitative scores\""
+            : c === "Valuation"
+              ? " title=\"Target price & upside. Hover for DCF/comps detail. Subtext = valuation-only rating if different from composite.\""
+              : "";
         return "<th data-col=\"" + c + "\"" + title + ">" + (LABELS[c] || c) + arrow + "</th>";
       }).join("") + "<th>PDF</th></tr>";
       thead.querySelectorAll("th[data-col]").forEach(function(th) {
@@ -684,26 +735,18 @@
         const t = row.Ticker || "", hasPdf = !!t;
         const cells = COLS.map(function(c) {
           const v = row[c];
+          if (c === "Composite_Rating") return fmtCompositeCell(row);
+          if (c === "Pillars") return fmtPillarsCell(row);
+          if (c === "Valuation") return fmtValuationCell(row);
           if (c === "Market_Cap") return "<td class=\"num\">" + fmtMktCap(v) + "</td>";
-          if (c === "Price" || c === "Target_Price" || c === "DCF_Fair_Value" || c === "Comps_Fair_Value") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
-          if (c === "Upside_Pct") return "<td>" + fmtPct(v) + "</td>";
-          if (c === "Confluence_Pct") {
-            if (v === "" || v == null || isNaN(+v)) return "<td class=\"num\">N/A</td>";
-            return "<td class=\"num\">" + (+v).toFixed(0) + "%</td>";
+          if (c === "Price") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
+          if (c === "Company") {
+            const sector = row.Sector
+              ? "<span class=\"cell-sub\">" + row.Sector + "</span>" : "";
+            return "<td class=\"company\">" + (v || "") + sector + "</td>";
           }
-          if (c === "Quant_Score") {
-            if (v === "" || v == null || isNaN(+v)) return "<td class=\"num\">N/A</td>";
-            const q = +v;
-            const cls = q >= 0.15 ? "up-good" : q <= -0.15 ? "up-bad" : "up-warn";
-            return "<td class=\"num\"><span class=\"" + cls + "\">" + q.toFixed(2) + "</span></td>";
-          }
-          if (c === "Golden_Cross") {
-            const yes = String(v).toLowerCase() === "true" || v === true;
-            return "<td>" + (yes ? "<span class=\"badge b-good\">YES</span>" : "<span class=\"badge b-warn\">—</span>") + "</td>";
-          }
-          if (c === "Composite_Rating" || c === "Rating" || c === "FSA_Rating" || c === "TA_Signal") return "<td>" + ratingBadge(v) + "</td>";
-          if (c === "Company") return "<td class=\"company\">" + (v || "") + "</td>";
           if (c === "Rank") return "<td class=\"num\">" + (v || "") + "</td>";
+          if (c === "Ticker") return "<td class=\"num\">" + (v || "") + "</td>";
           return "<td>" + (v || "") + "</td>";
         }).join("");
         const pdfCell = "<a class=\"pdf-link\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\" onclick=\"event.stopPropagation()\">Open PDF</a>";
@@ -782,7 +825,7 @@
         renderTable(window.SUMMARY_ROWS);
         const d = setDataAsOf();
         document.getElementById("asOfText").textContent = "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
-        hint.textContent = "Composite blends Valuation 45%, FSA 20%, TA 20%, Quant 15%. Valuation column is DCF/comps/analyst only. DCF/Comps N/A when excluded from target blend.";
+        hint.textContent = "Hover Target/Upside for DCF & comps. Full breakdown in PDF report.";
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }
