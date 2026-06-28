@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Darren Ye - Portfolio and Equity Research</title>
-  <meta name="description" content="Automated US mega-cap equity research: DCF, comps, analyst blend, PDF reports and live Top 20 dashboard." />
+  <meta name="description" content="Automated US mega-cap equity research: valuation, technical &amp; quantitative analysis, financial statement projections, PDF reports and live Top 20 dashboard." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://public-reports-one.vercel.app/" />
   <meta property="og:title" content="Darren Ye - Equity Research Automated Dashboard" />
-  <meta property="og:description" content="Top 20 US mega-cap summary with DCF, comps, and analyst cross-check." />
+  <meta property="og:description" content="Top 20 US mega-cap summary with valuation, technical, quantitative, and financial statement analysis." />
   <meta property="og:image" content="https://public-reports-one.vercel.app/social-card.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -219,7 +219,7 @@
       overflow-x:auto;border:1px solid var(--border);border-radius:10px;
       box-shadow:0 0 30px rgba(0,0,0,.25);
     }
-    .table-wrap table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--bg-elevated);min-width:1100px}
+    .table-wrap table{width:100%;border-collapse:collapse;font-size:var(--text-xs);background:var(--bg-elevated);min-width:1400px}
     .table-wrap th,.table-wrap td{padding:8px 10px;border-bottom:1px solid var(--border-soft);white-space:nowrap;text-align:left}
     .table-wrap th{
       font-family:var(--mono);background:rgba(34,211,238,.06);color:var(--accent);
@@ -310,6 +310,19 @@
       white-space:normal;word-break:normal;overflow-wrap:break-word;
       max-width:100%;
     }
+    .module-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px}
+    @media(max-width:900px){.module-grid{grid-template-columns:1fr}}
+    .module-card{
+      padding:18px;border:1px solid var(--border);border-radius:10px;
+      background:rgba(8,10,18,.65);
+    }
+    .module-card h3{font-size:var(--text-sm);color:var(--accent);margin-bottom:8px}
+    .module-card ul{margin:0;padding-left:18px}
+    .module-card li{font-size:var(--text-xs);color:var(--muted);margin:4px 0}
+    .module-tag{
+      font-family:var(--mono);font-size:9px;color:var(--violet);
+      letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;display:block;
+    }
   </style>
   <script src="summary-data.js"></script>
   <script src="dashboard-data.js"></script>
@@ -368,9 +381,11 @@
         </p>
       </div>
       <p class="lead">
-        The system pulls live data from Yahoo Finance, runs a blended valuation (Simon FCFE DCF,
-        comparable multiples, and analyst consensus), filters outliers, and publishes sell-side-style
-        PDF reports plus this interactive dashboard — synced weekly via GitHub and Vercel.
+        The system pulls live data from Yahoo Finance and runs a five-pillar analysis:
+        valuation (Simon FCFE DCF, comps, analyst blend), financial statement analysis
+        with revenue/NI projections, technical signals (SMA 42/252 golden cross, RSI),
+        and quantitative metrics (momentum, Sharpe, drawdown vs SPY). Results blend into a
+        composite rating and publish as 3-page PDF reports plus this interactive dashboard.
       </p>
       <p class="meta" id="dataAsOfLine">Data refresh: loading...</p>
       <div class="pill-row">
@@ -389,20 +404,59 @@
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-n">20</div><div class="kpi-l">Companies tracked</div></div>
         <div class="kpi"><div class="kpi-n" id="kpiPdfCount">20</div><div class="kpi-l">Deep-dive PDF reports</div></div>
-        <div class="kpi"><div class="kpi-n">3</div><div class="kpi-l">Valuation methods</div></div>
+        <div class="kpi"><div class="kpi-n">5</div><div class="kpi-l">Analysis pillars</div></div>
       </div>
       <div class="steps">
         <div class="step">
           <div class="step-title">1 · Collect</div>
-          <p>Prices, fundamentals, peer multiples, and analyst targets from Yahoo Finance.</p>
+          <p>5Y price history, fundamentals, peer multiples, analyst targets, and financial statements.</p>
         </div>
         <div class="step">
-          <div class="step-title">2 · Model</div>
-          <p>Simon FCFE DCF, comps (P/E, EV/EBITDA, P/S), and consensus cross-check with outlier filter.</p>
+          <div class="step-title">2 · Analyze</div>
+          <p>Valuation (DCF/comps/analyst), FSA ratios &amp; projections, SMA golden cross, quant backtest.</p>
         </div>
         <div class="step">
           <div class="step-title">3 · Publish</div>
-          <p>Auto-generate 2-page PDF reports, Excel valuation workbooks, and sync this site.</p>
+          <p>3-page PDF reports with composite signal, Excel valuation workbooks, and sync this site.</p>
+        </div>
+      </div>
+
+      <div class="module-grid">
+        <div class="module-card">
+          <span class="module-tag">MGTA 632 · Topics 5–6</span>
+          <h3>Technical Analysis</h3>
+          <ul>
+            <li>SMA 42 / SMA 252 trend structure and golden/death cross detection</li>
+            <li>RSI(14) overbought/oversold context</li>
+            <li>SMA crossover backtest vs buy-and-hold (reduces TA weight if underperforms)</li>
+          </ul>
+        </div>
+        <div class="module-card">
+          <span class="module-tag">MGTA 632 · Topics 2–6</span>
+          <h3>Quantitative Analysis</h3>
+          <ul>
+            <li>6M / 12M momentum, annualized volatility, max drawdown</li>
+            <li>Sharpe ratio and excess return vs SPY</li>
+            <li>Quant score feeds composite rating (15% weight)</li>
+          </ul>
+        </div>
+        <div class="module-card">
+          <span class="module-tag">MGTA 632 · Topics 7–8</span>
+          <h3>Financial Statement Analysis</h3>
+          <ul>
+            <li>Liquidity, leverage, margin trends, FCF/NI quality</li>
+            <li>Revenue &amp; net income CAGR with 1Y / 3Y projections</li>
+            <li>FSA health rating (20% composite weight)</li>
+          </ul>
+        </div>
+        <div class="module-card">
+          <span class="module-tag">Unchanged core</span>
+          <h3>Valuation</h3>
+          <ul>
+            <li>Simon FCFE DCF, comparable multiples, analyst consensus blend</li>
+            <li>Profile-aware weights (banks, conglomerates, high-growth tech)</li>
+            <li>Fundamental rating drives 45% of composite signal</li>
+          </ul>
         </div>
       </div>
 
@@ -523,11 +577,19 @@
   </footer>
 
   <script>
-    const COLS = ["Rank","Ticker","Company","Sector","Market_Cap","Price","DCF_Fair_Value","Comps_Fair_Value","Target_Price","Upside_Pct","Rating"];
+    const COLS = [
+      "Rank","Ticker","Company","Sector","Market_Cap","Price",
+      "Composite_Rating","Confluence_Pct","TA_Signal","Quant_Score","FSA_Rating",
+      "DCF_Fair_Value","Comps_Fair_Value","Target_Price","Upside_Pct","Rating","Golden_Cross"
+    ];
     const LABELS = {
       Rank:"#", Ticker:"Ticker", Company:"Company", Sector:"Sector",
-      Market_Cap:"Mkt Cap", Price:"Price", DCF_Fair_Value:"DCF",
-      Comps_Fair_Value:"Comps", Target_Price:"Target", Upside_Pct:"Upside", Rating:"Rating"
+      Market_Cap:"Mkt Cap", Price:"Price",
+      Composite_Rating:"Composite", Confluence_Pct:"Confluence",
+      TA_Signal:"TA", Quant_Score:"Quant", FSA_Rating:"FSA",
+      DCF_Fair_Value:"DCF", Comps_Fair_Value:"Comps",
+      Target_Price:"Target", Upside_Pct:"Upside", Rating:"Valuation",
+      Golden_Cross:"Golden X"
     };
     let allRows = [], sortCol = "Market_Cap", sortAsc = false;
 
@@ -590,7 +652,8 @@
       const kpi = document.getElementById("kpiPdfCount");
       if (kpi) kpi.textContent = String(tickers.length);
       document.getElementById("reportLinks").innerHTML = tickers.map(function(t) {
-        const row = rowByTicker(t), rtg = row ? row.Rating : "";
+        const row = rowByTicker(t);
+        const rtg = row ? (row.Composite_Rating || row.Rating) : "";
         const rtgHtml = rtg ? "<span class=\"rtg " + rtgBtnClass(rtg) + "\">" + rtg.toUpperCase() + "</span>" : "";
         return "<a class=\"report-btn\" href=\"" + reportHref(t) + "\" target=\"_blank\" rel=\"noreferrer\">"
           + t + rtgHtml + "<span class=\"sub\">PDF Report</span></a>";
@@ -606,7 +669,11 @@
           ? " title=\"Shown only when DCF is included in target blend\""
           : c === "Comps_Fair_Value"
             ? " title=\"Shown only when comps are included in target blend\""
-            : "";
+            : c === "Composite_Rating"
+              ? " title=\"Blended signal: Valuation 45%, FSA 20%, TA 20%, Quant 15%\""
+              : c === "Rating"
+                ? " title=\"Valuation-only rating (DCF/comps/analyst)\""
+                : "";
         return "<th data-col=\"" + c + "\"" + title + ">" + (LABELS[c] || c) + arrow + "</th>";
       }).join("") + "<th>PDF</th></tr>";
       thead.querySelectorAll("th[data-col]").forEach(function(th) {
@@ -624,8 +691,22 @@
           if (c === "Market_Cap") return "<td class=\"num\">" + fmtMktCap(v) + "</td>";
           if (c === "Price" || c === "Target_Price" || c === "DCF_Fair_Value" || c === "Comps_Fair_Value") return "<td class=\"num\">" + fmtMoney(v) + "</td>";
           if (c === "Upside_Pct") return "<td>" + fmtPct(v) + "</td>";
+          if (c === "Confluence_Pct") {
+            if (v === "" || v == null || isNaN(+v)) return "<td class=\"num\">N/A</td>";
+            return "<td class=\"num\">" + (+v).toFixed(0) + "%</td>";
+          }
+          if (c === "Quant_Score") {
+            if (v === "" || v == null || isNaN(+v)) return "<td class=\"num\">N/A</td>";
+            const q = +v;
+            const cls = q >= 0.15 ? "up-good" : q <= -0.15 ? "up-bad" : "up-warn";
+            return "<td class=\"num\"><span class=\"" + cls + "\">" + q.toFixed(2) + "</span></td>";
+          }
+          if (c === "Golden_Cross") {
+            const yes = String(v).toLowerCase() === "true" || v === true;
+            return "<td>" + (yes ? "<span class=\"badge b-good\">YES</span>" : "<span class=\"badge b-warn\">—</span>") + "</td>";
+          }
+          if (c === "Composite_Rating" || c === "Rating" || c === "FSA_Rating" || c === "TA_Signal") return "<td>" + ratingBadge(v) + "</td>";
           if (c === "Company") return "<td class=\"company\">" + (v || "") + "</td>";
-          if (c === "Rating") return "<td>" + ratingBadge(v) + "</td>";
           if (c === "Rank") return "<td class=\"num\">" + (v || "") + "</td>";
           return "<td>" + (v || "") + "</td>";
         }).join("");
@@ -694,7 +775,7 @@
     function setDataAsOf() {
       const d = window.DATA_AS_OF || new Date().toISOString().slice(0, 10);
       document.getElementById("dataAsOfLine").textContent =
-        "Data as of " + d + " · Refreshed weekly · Top 20 US mega-caps";
+        "Data as of " + d + " · Refreshed weekly · 5-pillar equity research · Top 20 US mega-caps";
       return d;
     }
     async function loadSummary() {
@@ -705,7 +786,7 @@
         renderTable(window.SUMMARY_ROWS);
         const d = setDataAsOf();
         document.getElementById("asOfText").textContent = "Sorted by market cap · " + window.SUMMARY_ROWS.length + " companies · " + d;
-        hint.textContent = "DCF/Comps show N/A when excluded from target blend (distorted FCFE or outlier vs peers). Full model in PDF.";
+        hint.textContent = "Composite blends Valuation 45%, FSA 20%, TA 20%, Quant 15%. Valuation column is DCF/comps/analyst only. DCF/Comps N/A when excluded from target blend.";
         status.textContent = "OK (" + window.SUMMARY_ROWS.length + ")";
         return;
       }

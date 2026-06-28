@@ -1,4 +1,4 @@
-window.DATA_AS_OF = "2026-06-27";
+window.DATA_AS_OF = "2026-06-28";
 window.SUMMARY_ROWS = [
   {
     "Rank": "1",
@@ -15,6 +15,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "193.51999999999998",
     "Upside_Pct": "0.5142055783514232",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.65",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; weak roe; positive fcf generation."
   },
   {
@@ -32,6 +38,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "261.8790526518213",
     "Upside_Pct": "-7.717579585657431",
     "Rating": "UNDERWEIGHT",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.55",
+    "FSA_Rating": "Weak",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; weak roe; positive fcf generation."
   },
   {
@@ -49,6 +61,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "306.25666666666666",
     "Upside_Pct": "-9.227698904334247",
     "Rating": "UNDERWEIGHT",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.4999999999999999",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -66,6 +84,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "415.06397208000004",
     "Upside_Pct": "11.28615494007561",
     "Rating": "OVERWEIGHT",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BEARISH",
+    "Quant_Score": "-0.7000000000000001",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -83,6 +107,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "241.785971175",
     "Upside_Pct": "3.9090511732347677",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "-0.2",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; healthy margins; strong roe; positive fcf generation."
   },
   {
@@ -100,6 +130,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "177.82133333333334",
     "Upside_Pct": "16.04864147577716",
     "Rating": "HOLD",
+    "Composite_Rating": "OVERWEIGHT",
+    "TA_Signal": "NEUTRAL",
+    "Quant_Score": "0.0",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; compressed margins."
   },
   {
@@ -117,6 +153,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "374.2266666666667",
     "Upside_Pct": "2.522236224499119",
     "Rating": "HOLD",
+    "Composite_Rating": "OVERWEIGHT",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.65",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; strong roe; positive fcf generation."
   },
   {
@@ -134,6 +176,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "395.5138866666666",
     "Upside_Pct": "4.162093878661777",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "-2.7755575615628914e-17",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; compressed margins; conservative balance sheet; weak roe; positive fcf generation."
   },
   {
@@ -151,6 +199,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "622.2533333333333",
     "Upside_Pct": "13.085567166439493",
     "Rating": "OVERWEIGHT",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BEARISH",
+    "Quant_Score": "-0.7000000000000001",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -168,6 +222,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "1168.9641367091417",
     "Upside_Pct": "3.2352880087202385",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.65",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Modest revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -181,10 +241,16 @@ window.SUMMARY_ROWS = [
     "Revenue_Growth_Pct": "55.50000000000001",
     "Operating_Margin_Pct": "49.386",
     "DCF_Fair_Value": "",
-    "Comps_Fair_Value": "1239.0642649276333",
-    "Target_Price": "1235.7755519421066",
-    "Upside_Pct": "2.2891394846626723",
+    "Comps_Fair_Value": "1239.0415808512632",
+    "Target_Price": "1235.7574046810105",
+    "Upside_Pct": "2.287637377165397",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.8",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; weak roe; positive fcf generation."
   },
   {
@@ -202,6 +268,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "516.3340667340506",
     "Upside_Pct": "3.544312103246816",
     "Rating": "HOLD",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BEARISH",
+    "Quant_Score": "0.25",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Modest revenue growth; healthy margins; conservative balance sheet; positive fcf generation."
   },
   {
@@ -219,6 +291,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "94.2183073021703",
     "Upside_Pct": "-18.559679054222233",
     "Rating": "SELL",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.6499999999999999",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Modest revenue growth; compressed margins; strong roe; positive fcf generation."
   },
   {
@@ -236,6 +314,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "241.7674477240604",
     "Upside_Pct": "-26.525619898477316",
     "Rating": "SELL",
+    "Composite_Rating": "UNDERWEIGHT",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.4999999999999999",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins."
   },
   {
@@ -253,6 +337,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "420.17920933333335",
     "Upside_Pct": "-19.44108107417207",
     "Rating": "SELL",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.4999999999999999",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; healthy margins; conservative balance sheet; positive fcf generation."
   },
   {
@@ -270,6 +360,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "397.19849578005585",
     "Upside_Pct": "18.13297319693539",
     "Rating": "OVERWEIGHT",
+    "Composite_Rating": "OVERWEIGHT",
+    "TA_Signal": "BEARISH",
+    "Quant_Score": "-0.30000000000000004",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "50.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; strong roe; positive fcf generation."
   },
   {
@@ -287,6 +383,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "143.07614210148256",
     "Upside_Pct": "4.786979713990447",
     "Rating": "HOLD",
+    "Composite_Rating": "OVERWEIGHT",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.6499999999999999",
+    "FSA_Rating": "Stable",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Modest revenue growth; compressed margins; conservative balance sheet; positive fcf generation."
   },
   {
@@ -304,6 +406,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "694.1735563160573",
     "Upside_Pct": "10.741745312369556",
     "Rating": "OVERWEIGHT",
+    "Composite_Rating": "OVERWEIGHT",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.4999999999999999",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "100.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; conservative balance sheet; strong roe; positive fcf generation."
   },
   {
@@ -321,6 +429,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "829.849806142752",
     "Upside_Pct": "-16.80453485891786",
     "Rating": "SELL",
+    "Composite_Rating": "HOLD",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.8",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "75.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; healthy margins; elevated leverage; strong roe; positive fcf generation."
   },
   {
@@ -338,6 +452,12 @@ window.SUMMARY_ROWS = [
     "Target_Price": "159.6388236667749",
     "Upside_Pct": "40.31715185617906",
     "Rating": "BUY",
+    "Composite_Rating": "BUY",
+    "TA_Signal": "BULLISH",
+    "Quant_Score": "0.4999999999999999",
+    "FSA_Rating": "Strong",
+    "Confluence_Pct": "100.0",
+    "Golden_Cross": "False",
     "Financial_Health": "Strong revenue growth; high operating margins; strong roe; positive fcf generation."
   }
 ];

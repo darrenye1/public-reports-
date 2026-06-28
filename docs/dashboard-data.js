@@ -1,23 +1,32 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-27T19:32:58Z",
-  "data_as_of": "2026-06-27",
+  "generated_at": "2026-06-28T14:20:36Z",
+  "data_as_of": "2026-06-28",
   "news": [
     {
-      "title": "Dow Jones Futures: Market At Tipping Point. Eli Lilly Soars, Tesla, Jobs On Tap.",
-      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
-      "source": "Investor's Business Daily",
-      "summary": "Here's what investors should do amid the stock market's divergent signals. Eli Lilly is strong while Tesla EV sales loom.",
-      "published": "2026-06-27T15:52:10+00:00",
+      "title": "AI jitters meet a jobs report and falling oil prices: What to watch this week",
+      "url": "https://finance.yahoo.com/markets/article/ai-jitters-meet-a-jobs-report-and-falling-oil-prices-what-to-watch-this-week-100000636.html",
+      "source": "Yahoo Finance",
+      "summary": "After a roller-coaster week in the markets, thanks to flip-flopping sentiment about AI spending, investors will get plenty more action on the calendar as we enter jobs week.",
+      "published": "2026-06-28T10:00:00+00:00",
+      "published_display": "Jun 28, 2026",
+      "day": "2026-06-28"
+    },
+    {
+      "title": "Forget the AI Chipmakers. For 0.47% This Fund Owns the Companies Building the Data Centers",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/forget-ai-chipmakers-0-47-132345030.html",
+      "source": "24/7 Wall St.",
+      "summary": "If you own VanEck Semiconductor ETF (NASDAQ:SMH) for AI exposure, you are betting on the same handful of chip designers everyone else holds. SMH is the default vehicle for the trade: a concentrated basket led by NVIDIA, Taiwan Semiconductor, and Broadcom that has produced the hea",
+      "published": "2026-06-27T13:23:45+00:00",
       "published_display": "Jun 27, 2026",
       "day": "2026-06-27"
     },
     {
-      "title": "Dollar declines for second straight day but set for weekly gain",
-      "url": "https://finance.yahoo.com/news/yen-wobbles-near-40-low-010511440.html",
-      "source": "Reuters",
-      "summary": "NEW YORK, June 26 (Reuters) - The dollar fell for a second straight session on Friday as recent economic data and a drop in oil prices slightly cooled expectations for Federal Reserve rate hikes,",
-      "published": "2026-06-26T18:50:24+00:00",
-      "published_display": "Jun 26, 2026",
+      "title": "Scott Bessent Defends Tariff Reboot, Unveils ‘3 Through 3’ Plan To Beat ‘Structural Inflation’",
+      "url": "https://finance.yahoo.com/economy/policy/articles/scott-bessent-defends-tariff-reboot-033101799.html",
+      "source": "Benzinga",
+      "summary": "Treasury Secretary Scott Bessent on Wednesday defended the administration’s aggressive trade policies, unveiling a comprehensive “3 through 3” economic blueprint designed to sustain high GDP growth while neutralizing “structural inflation.” Deconstructing critics’ claims that imp",
+      "published": "2026-06-27T03:31:01+00:00",
+      "published_display": "Jun 27, 2026",
       "day": "2026-06-26"
     },
     {

@@ -37,6 +37,23 @@ from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from financial_statement_analysis import (
+    FinancialStatementSummary,
+    build_financial_statement_summary,
+    build_fsa_narrative,
+    build_fsa_table,
+)
+from market_analytics import (
+    BacktestSummary,
+    QuantSummary,
+    TechnicalSummary,
+    build_quant_summary,
+    build_quant_table,
+    build_technical_summary,
+    build_technical_table,
+    run_sma_backtest,
+)
+from signal_blend import InvestmentSignal, blend_investment_signal
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -47,6 +64,7 @@ DEFAULT_TERMINAL_GROWTH = 0.025
 DEFAULT_PROJECTION_YEARS = 5
 DEFAULT_FCF_GROWTH = 0.08
 DEFAULT_OUTPUT_DIR = "reports"
+HISTORY_PERIOD = "5y"
 TOP_US_PDF_REPORT_COUNT = 20
 TOP_US_SUMMARY_COUNT = 20
 SUMMARY_REPORT_NAME = "Top20_Summary.pdf"
@@ -391,6 +409,27 @@ class ReportRow:
     rating: str
     financial_health: str
     output_path: str
+    ta_signal: str = ""
+    quant_score: float | None = None
+    fsa_rating: str = ""
+    composite_rating: str = ""
+    confluence_pct: float | None = None
+    golden_cross: bool = False
+
+
+@dataclass
+class FullAnalysis:
+    """Complete multi-pillar analysis for one ticker."""
+    data: CompanyData
+    summary: FinancialSummary
+    industry: IndustryResearch
+    competitors: CompetitorAnalysis
+    valuation: ValuationSummary
+    technical: TechnicalSummary
+    quant: QuantSummary
+    backtest: BacktestSummary
+    fsa: FinancialStatementSummary
+    signal: InvestmentSignal
 
 
 # ---------------------------------------------------------------------------
@@ -431,7 +470,7 @@ def _yfinance_retryable(exc: BaseException) -> bool:
     return "rate limit" in msg or "too many requests" in msg or "429" in msg
 
 
-def fetch_company(ticker: str, history_period: str = "1y") -> CompanyData:
+def fetch_company(ticker: str, history_period: str = HISTORY_PERIOD) -> CompanyData:
     symbol = ticker.upper().strip()
     last_err: BaseException | None = None
     for attempt in range(YFINANCE_FETCH_RETRIES):
@@ -537,6 +576,12 @@ def _report_row_to_dict(row: ReportRow) -> dict[str, Any]:
         "rating": row.rating,
         "financial_health": row.financial_health,
         "output_path": row.output_path,
+        "ta_signal": row.ta_signal,
+        "quant_score": row.quant_score,
+        "fsa_rating": row.fsa_rating,
+        "composite_rating": row.composite_rating,
+        "confluence_pct": row.confluence_pct,
+        "golden_cross": row.golden_cross,
     }
 
 
@@ -558,6 +603,12 @@ def _report_row_from_dict(d: dict[str, Any]) -> ReportRow:
         rating=d.get("rating", "HOLD"),
         financial_health=d.get("financial_health", ""),
         output_path=d.get("output_path", ""),
+        ta_signal=d.get("ta_signal", ""),
+        quant_score=d.get("quant_score"),
+        fsa_rating=d.get("fsa_rating", ""),
+        composite_rating=d.get("composite_rating", ""),
+        confluence_pct=d.get("confluence_pct"),
+        golden_cross=bool(d.get("golden_cross", False)),
     )
 
 
@@ -2804,25 +2855,91 @@ def is_monday(d: datetime | None = None) -> bool:
     return d.weekday() == 0
 
 
+def _get_spy_history() -> pd.DataFrame | None:
+    try:
+        spy = yf.Ticker("SPY").history(period=HISTORY_PERIOD)
+        return spy if spy is not None and not spy.empty else None
+    except Exception:
+        return None
+
+
+_SPY_HISTORY_CACHE: pd.DataFrame | None = None
+
+
+def get_spy_history() -> pd.DataFrame | None:
+    global _SPY_HISTORY_CACHE
+    if _SPY_HISTORY_CACHE is None:
+        _SPY_HISTORY_CACHE = _get_spy_history()
+    return _SPY_HISTORY_CACHE
+
+
+def build_full_analysis(
+    ticker: str,
+    peer_tickers: list[str] | None = None,
+    wacc: float | None = None,
+    data: CompanyData | None = None,
+) -> FullAnalysis | None:
+    symbol = ticker.upper().strip()
+    if data is None:
+        try:
+            data = fetch_company(symbol)
+        except ValueError as e:
+            print(f"  Skipping {symbol}: {e}", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"  Skipping {symbol}: {e}", file=sys.stderr)
+            return None
+    summary = build_financial_summary(data)
+    industry = build_industry_research(data, summary)
+    competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
+    valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
+
+    technical = build_technical_summary(data.history)
+    quant = build_quant_summary(data.history, beta=summary.beta, spy_history=get_spy_history())
+    backtest = run_sma_backtest(data.history)
+    fsa = build_financial_statement_summary(
+        data.financials,
+        data.balance_sheet,
+        summary.revenue,
+        summary.revenue_growth,
+        summary.operating_margin,
+        summary.debt_to_equity,
+        summary.roe,
+        summary.free_cash_flow,
+    )
+
+    fund_rating = recommendation_short(valuation)
+    upside = None
+    if valuation.target_price and summary.current_price and summary.current_price > 0:
+        upside = (valuation.target_price / summary.current_price - 1) * 100
+
+    signal = blend_investment_signal(
+        fund_rating, upside, technical, quant, fsa, backtest,
+    )
+
+    return FullAnalysis(
+        data=data,
+        summary=summary,
+        industry=industry,
+        competitors=competitors,
+        valuation=valuation,
+        technical=technical,
+        quant=quant,
+        backtest=backtest,
+        fsa=fsa,
+        signal=signal,
+    )
+
+
 def _analyze_ticker(
     ticker: str,
     peer_tickers: list[str] | None = None,
     wacc: float | None = None,
 ) -> tuple[CompanyData, FinancialSummary, IndustryResearch, CompetitorAnalysis, ValuationSummary] | None:
-    symbol = ticker.upper().strip()
-    try:
-        data = fetch_company(symbol)
-    except ValueError:
-        print(f"  Skipping {symbol}: data unavailable", file=sys.stderr)
+    full = build_full_analysis(ticker, peer_tickers, wacc)
+    if not full:
         return None
-    except Exception as e:
-        print(f"  Skipping {symbol}: {e}", file=sys.stderr)
-        return None
-    summary = build_financial_summary(data)
-    industry = build_industry_research(data, summary)
-    competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
-    valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
-    return data, summary, industry, competitors, valuation
+    return full.data, full.summary, full.industry, full.competitors, full.valuation
 
 
 def _report_row_from_analysis(
@@ -2830,10 +2947,17 @@ def _report_row_from_analysis(
     summary: FinancialSummary,
     valuation: ValuationSummary,
     output_path: str = "",
+    full: FullAnalysis | None = None,
 ) -> ReportRow:
     upside = None
     if valuation.target_price and summary.current_price and summary.current_price > 0:
         upside = (valuation.target_price / summary.current_price - 1) * 100
+    ta_signal = full.technical.signal if full else ""
+    quant_score = full.quant.quant_score if full else None
+    fsa_rating = full.fsa.health_rating if full else ""
+    composite = full.signal.composite_rating if full else recommendation_short(valuation)
+    confluence = full.signal.confluence_pct if full else None
+    golden = full.technical.golden_cross if full else False
     return ReportRow(
         ticker=symbol,
         company_name=summary.company_name,
@@ -2851,6 +2975,12 @@ def _report_row_from_analysis(
         rating=recommendation_short(valuation),
         financial_health=build_financial_health_summary(summary),
         output_path=output_path,
+        ta_signal=ta_signal,
+        quant_score=quant_score,
+        fsa_rating=fsa_rating,
+        composite_rating=composite,
+        confluence_pct=confluence,
+        golden_cross=golden,
     )
 
 
@@ -2862,16 +2992,14 @@ def process_ticker_report(
     replace: bool = True,
     data: CompanyData | None = None,
 ) -> tuple[ReportRow | None, CompanyData | None]:
-    if data is None:
-        result = _analyze_ticker(ticker, peer_tickers, wacc)
-        if not result:
-            return None, None
-        data, summary, industry, competitors, valuation = result
-    else:
-        summary = build_financial_summary(data)
-        industry = build_industry_research(data, summary)
-        competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
-        valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
+    full = build_full_analysis(ticker, peer_tickers, wacc, data=data)
+    if not full:
+        return None, None
+    data = full.data
+    summary = full.summary
+    industry = full.industry
+    competitors = full.competitors
+    valuation = full.valuation
 
     symbol = ticker.upper().strip()
 
@@ -2887,8 +3015,11 @@ def process_ticker_report(
             base, ext = os.path.splitext(output_path)
             output_path = f"{base}_{datetime.now().strftime('%H%M%S')}{ext}"
 
-    generate_pdf_report(summary, industry, competitors, valuation, data.history, output_path, data)
-    row = _report_row_from_analysis(symbol, summary, valuation, output_path)
+    generate_pdf_report(
+        summary, industry, competitors, valuation, data.history, output_path, data,
+        full=full,
+    )
+    row = _report_row_from_analysis(symbol, summary, valuation, output_path, full=full)
     return row, data
 
 
@@ -2898,17 +3029,13 @@ def process_ticker_summary_only(
     wacc: float | None = None,
     data: CompanyData | None = None,
 ) -> tuple[ReportRow | None, CompanyData | None]:
-    if data is None:
-        result = _analyze_ticker(ticker, peer_tickers, wacc)
-        if not result:
-            return None, None
-        data, summary, _, _, valuation = result
-    else:
-        summary = build_financial_summary(data)
-        competitors = build_competitor_analysis(data, summary, peer_tickers=peer_tickers)
-        valuation = build_valuation_summary(data, summary, competitors, wacc=wacc)
-    row = _report_row_from_analysis(ticker.upper().strip(), summary, valuation)
-    return row, data
+    full = build_full_analysis(ticker, peer_tickers, wacc, data=data)
+    if not full:
+        return None, None
+    row = _report_row_from_analysis(
+        ticker.upper().strip(), full.summary, full.valuation, full=full,
+    )
+    return row, full.data
 
 
 def build_pdf_ticker_list(ranked_tickers: list[str], pdf_count: int) -> list[str]:
@@ -3088,15 +3215,28 @@ def run_batch_top20(
 # ---------------------------------------------------------------------------
 
 
-def _price_chart(history, ticker: str) -> io.BytesIO | None:
+def _price_chart(history, ticker: str, technical: TechnicalSummary | None = None) -> io.BytesIO | None:
     if history is None or history.empty:
         return None
-    fig, ax = plt.subplots(figsize=(3.2, 1.0), dpi=120)
-    ax.plot(history.index, history["Close"], color="#2b6cb0", linewidth=1.2)
-    ax.fill_between(history.index, history["Close"], alpha=0.15, color="#2b6cb0")
-    ax.set_title(f"{ticker} — 1Y Price", fontsize=7, pad=3)
+    close = history["Close"].dropna()
+    if close.empty:
+        return None
+    fig, ax = plt.subplots(figsize=(3.4, 1.15), dpi=120)
+    plot_hist = close.tail(252) if len(close) > 252 else close
+    ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.2, label="Price")
+    if len(close) >= 42:
+        sma42 = close.rolling(42).mean().tail(len(plot_hist))
+        ax.plot(sma42.index, sma42.values, color="#f59e0b", linewidth=0.9, label="SMA42")
+    if len(close) >= 252:
+        sma252 = close.rolling(252).mean().tail(len(plot_hist))
+        ax.plot(sma252.index, sma252.values, color="#a78bfa", linewidth=0.9, label="SMA252")
+    title = f"{ticker} — Price & SMA"
+    if technical and technical.golden_cross:
+        title += " · GC"
+    ax.set_title(title, fontsize=7, pad=3)
     ax.tick_params(labelsize=5)
     ax.grid(True, alpha=0.3, linewidth=0.5)
+    ax.legend(fontsize=4, loc="upper left")
     fig.patch.set_facecolor("white")
     plt.tight_layout(pad=0.3)
     buf = io.BytesIO()
@@ -3399,19 +3539,21 @@ def generate_pdf_report(
     history,
     output_path: str,
     data: CompanyData | None = None,
+    full: FullAnalysis | None = None,
 ) -> str:
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     fiscal_period = get_financial_period_key(data) if data else "N/A"
     data_as_of = datetime.now().strftime("%Y-%m-%d")
+    composite_rating = full.signal.composite_rating if full else recommendation_short(valuation)
     pdf_meta = {
         "ticker": summary.ticker,
-        "rating": recommendation_short(valuation),
+        "rating": composite_rating,
         "target": f"${valuation.target_price:.2f}" if valuation.target_price else "N/A",
         "data_as_of": data_as_of,
         "fiscal_period": fiscal_period or "N/A",
     }
-    page_draw = _pdf_page_decorator(pdf_meta, total_pages=2)
+    page_draw = _pdf_page_decorator(pdf_meta, total_pages=3)
 
     doc = SimpleDocTemplate(
         output_path,
@@ -3435,8 +3577,9 @@ def generate_pdf_report(
     elements: list = []
 
     rating = recommendation_short(valuation)
-    rec_color = GREEN if rating in ("BUY", "OVERWEIGHT") else (
-        RED if rating in ("SELL", "UNDERWEIGHT") else colors.HexColor("#744210")
+    comp_rating = full.signal.composite_rating if full else rating
+    rec_color = GREEN if comp_rating in ("BUY", "OVERWEIGHT") else (
+        RED if comp_rating in ("SELL", "UNDERWEIGHT") else colors.HexColor("#744210")
     )
     report_date = datetime.now().strftime("%B %d, %Y")
     price_str = f"${summary.current_price:.2f}" if summary.current_price else "N/A"
@@ -3451,9 +3594,9 @@ def generate_pdf_report(
         [
             Paragraph(f"{summary.company_name} ({summary.ticker}.US)", title_style),
             Paragraph(
-                f'<font color="#{rec_color.hexval()[2:]}"><b>{rating}</b></font><br/>'
+                f'<font color="#{rec_color.hexval()[2:]}"><b>{comp_rating}</b></font><br/>'
+                f"<font size='7'>Composite · Valuation: {rating}</font><br/>"
                 f"<font size='8'>Blended Target: {target_str}</font>"
-                f"<br/><font size='6'>DCF + Comps + Analyst (see cross-check table)</font>"
                 f"{upside_hdr}",
                 ParagraphStyle("RecBox", fontSize=11, alignment=TA_CENTER, textColor=rec_color),
             ),
@@ -3488,6 +3631,17 @@ def generate_pdf_report(
     elements.append(_section_title("Investment Highlights"))
     for bullet in build_investment_highlights(summary, industry, valuation):
         elements.append(_body(f"• {bullet}", 5.5))
+    if full:
+        elements.append(Spacer(1, 1))
+        elements.append(_section_title("Composite Investment Signal"))
+        sig = full.signal
+        elements.append(_body(
+            f"Composite: {sig.composite_rating} (score {sig.composite_score:+.2f}, "
+            f"confluence {sig.confluence_pct:.0f}%) · "
+            f"TA: {sig.technical_signal} · Quant: {sig.quant_signal} · FSA: {sig.fsa_rating}. "
+            f"{sig.action_note}",
+            5.2,
+        ))
     elements.append(Spacer(1, 2))
 
     elements.append(_section_title("Investment Thesis / Executive Summary"))
@@ -3515,10 +3669,11 @@ def generate_pdf_report(
     ]
     key_table = Table(key_data_rows, colWidths=[1.0 * inch, 1.15 * inch, 1.0 * inch, 1.15 * inch])
 
-    chart_buf = _price_chart(history, summary.ticker)
+    tech = full.technical if full else None
+    chart_buf = _price_chart(history, summary.ticker, tech)
     if chart_buf:
         top_row = Table(
-            [[key_table, Image(chart_buf, width=2.75 * inch, height=0.95 * inch)]],
+            [[key_table, Image(chart_buf, width=2.75 * inch, height=1.05 * inch)]],
             colWidths=[4.15 * inch, 2.9 * inch],
         )
     else:
@@ -3541,13 +3696,44 @@ def generate_pdf_report(
 
     elements.append(PageBreak())
 
-    # --- Page 2 only: valuation cross-check + industry + peers (strict 2-page layout) ---
     page2_hdr = ParagraphStyle(
         "Page2Hdr", fontName="Helvetica-Bold", fontSize=9, textColor=NAVY, spaceAfter=2,
     )
     elements.append(Paragraph(
-        f"<b>Page 2 of 2</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Valuation · Industry · Peers · Data as of {data_as_of} · {fiscal_period}",
+        f"<b>Page 2 of 3</b> · {summary.company_name} ({summary.ticker}) · "
+        f"Financial Statement · Technical · Quantitative · {data_as_of}",
+        page2_hdr,
+    ))
+
+    if full:
+        elements.append(Spacer(1, 2))
+        elements.append(_section_title("Financial Statement Analysis (Topic 7–8)"))
+        elements.append(_body(build_fsa_narrative(full.fsa), 5.2))
+        elements.append(_make_styled_table(
+            build_fsa_table(full.fsa),
+            [1.35 * inch, 1.55 * inch, 2.1 * inch],
+            wrap_col=2,
+        ))
+        elements.append(Spacer(1, 2))
+        elements.append(_section_title("Technical Analysis (SMA 42/252 · Topic 5)"))
+        elements.append(_make_styled_table(
+            build_technical_table(full.technical),
+            [1.2 * inch, 1.0 * inch, 2.4 * inch],
+            wrap_col=2,
+        ))
+        elements.append(Spacer(1, 2))
+        elements.append(_section_title("Quantitative Analysis (Topic 2–6)"))
+        elements.append(_make_styled_table(
+            build_quant_table(full.quant, full.backtest),
+            [1.35 * inch, 1.1 * inch, 2.3 * inch],
+            wrap_col=2,
+        ))
+
+    elements.append(PageBreak())
+
+    elements.append(Paragraph(
+        f"<b>Page 3 of 3</b> · {summary.company_name} ({summary.ticker}) · "
+        f"Valuation · Industry · Peers · {fiscal_period}",
         page2_hdr,
     ))
 
@@ -3716,6 +3902,12 @@ def generate_summary_pdf(rows: list[ReportRow], output_path: str) -> str:
             "Target_Price": r.target_price,
             "Upside_Pct": r.upside_pct,
             "Rating": r.rating,
+            "Composite_Rating": r.composite_rating,
+            "TA_Signal": r.ta_signal,
+            "Quant_Score": r.quant_score,
+            "FSA_Rating": r.fsa_rating,
+            "Confluence_Pct": r.confluence_pct,
+            "Golden_Cross": r.golden_cross,
             "Financial_Health": r.financial_health,
         } for i, r in enumerate(rows, start=1)]).to_csv(csv_path, index=False)
         print(f"Summary CSV saved: {csv_path}")
@@ -4383,17 +4575,15 @@ def main() -> int:
 
     ticker = args.ticker.upper().strip()
     print(f"Fetching data for {ticker} from Yahoo Finance...")
-    try:
-        data = fetch_company(ticker)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+    full = build_full_analysis(ticker, peer_tickers=args.peers, wacc=args.wacc, data=None)
+    if not full:
+        print("Error: could not build analysis", file=sys.stderr)
         return 1
-
-    print("Building financial summary...")
-    summary = build_financial_summary(data)
-    industry = build_industry_research(data, summary)
-    competitors = build_competitor_analysis(data, summary, peer_tickers=args.peers)
-    valuation = build_valuation_summary(data, summary, competitors, wacc=args.wacc)
+    data = full.data
+    summary = full.summary
+    industry = full.industry
+    competitors = full.competitors
+    valuation = full.valuation
 
     if args.fcf_growth is not None or args.terminal_growth is not None:
         valuation.dcf = run_dcf(
@@ -4417,11 +4607,13 @@ def main() -> int:
             output_path = f"{base}_{datetime.now().strftime('%H%M%S')}{ext}"
 
     print(f"Generating PDF report -> {output_path}")
-    generate_pdf_report(summary, industry, competitors, valuation, data.history, output_path, data)
+    generate_pdf_report(
+        summary, industry, competitors, valuation, data.history, output_path, data, full=full,
+    )
 
     os.makedirs(args.output_dir, exist_ok=True)
     state = load_data_state(args.output_dir)
-    row = _report_row_from_analysis(ticker, summary, valuation, output_path)
+    row = _report_row_from_analysis(ticker, summary, valuation, output_path, full=full)
     record_ticker_state(state, ticker, data, row)
     save_data_state(args.output_dir, state)
 
@@ -4432,11 +4624,13 @@ def main() -> int:
         print(f"Exporting Simon DCF Excel -> {excel_path}")
         export_simon_valuation_excel(ticker, data, summary, valuation, competitors, excel_path)
 
+    sig = full.signal
     print("\n" + "=" * 50)
     print(f"  {summary.company_name} ({ticker})")
     print(f"  Price: ${summary.current_price:.2f}" if summary.current_price else "  Price: N/A")
-    print(f"  Rating: {recommendation_short(valuation)}")
-    print(f"  Recommendation: {valuation.recommendation}")
+    print(f"  Valuation Rating: {recommendation_short(valuation)}")
+    print(f"  Composite Rating: {sig.composite_rating} (confluence {sig.confluence_pct:.0f}%)")
+    print(f"  TA: {sig.technical_signal} | Quant: {sig.quant_signal} | FSA: {sig.fsa_rating}")
     if valuation.target_price:
         print(f"  Target Price: ${valuation.target_price:.2f}")
     print(f"  PDF saved: {output_path}")
