@@ -244,6 +244,9 @@ LIGHT_BG = colors.HexColor("#f7fafc")
 BORDER = colors.HexColor("#cbd5e0")
 GREEN = colors.HexColor("#276749")
 RED = colors.HexColor("#c53030")
+PDF_PAGE_MARGIN = 0.42 * inch
+PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
+PDF_CHART_ASPECT = 7.2 / 2.05  # width / height for price chart image
 
 
 # ---------------------------------------------------------------------------
@@ -3221,26 +3224,29 @@ def _price_chart(history, ticker: str, technical: TechnicalSummary | None = None
     close = history["Close"].dropna()
     if close.empty:
         return None
-    fig, ax = plt.subplots(figsize=(3.4, 1.15), dpi=120)
+    fig, ax = plt.subplots(figsize=(7.2, 2.05), dpi=150)
     plot_hist = close.tail(252) if len(close) > 252 else close
-    ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.2, label="Price")
+    ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.6, label="Price")
     if len(close) >= 42:
         sma42 = close.rolling(42).mean().tail(len(plot_hist))
-        ax.plot(sma42.index, sma42.values, color="#f59e0b", linewidth=0.9, label="SMA42")
+        ax.plot(sma42.index, sma42.values, color="#f59e0b", linewidth=1.2, label="SMA 42")
     if len(close) >= 252:
         sma252 = close.rolling(252).mean().tail(len(plot_hist))
-        ax.plot(sma252.index, sma252.values, color="#a78bfa", linewidth=0.9, label="SMA252")
-    title = f"{ticker} — Price & SMA"
+        ax.plot(sma252.index, sma252.values, color="#a78bfa", linewidth=1.2, label="SMA 252")
+    title = f"{ticker} — Price & SMA (252D)"
     if technical and technical.golden_cross:
-        title += " · GC"
-    ax.set_title(title, fontsize=7, pad=3)
-    ax.tick_params(labelsize=5)
-    ax.grid(True, alpha=0.3, linewidth=0.5)
-    ax.legend(fontsize=4, loc="upper left")
+        title += " · Golden Cross"
+    ax.set_title(title, fontsize=10, fontweight="bold", pad=6, color="#1a365d")
+    ax.tick_params(labelsize=7.5, colors="#4a5568")
+    ax.grid(True, alpha=0.25, linewidth=0.6)
+    ax.legend(fontsize=7, loc="upper left", framealpha=0.92, edgecolor="#cbd5e0")
+    ax.set_facecolor("#fafafa")
     fig.patch.set_facecolor("white")
-    plt.tight_layout(pad=0.3)
+    ax.margins(x=0.02)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha="center")
+    plt.tight_layout(pad=0.5)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor="white")
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -3360,7 +3366,7 @@ def _section_title(text: str) -> Paragraph:
         text.upper(),
         ParagraphStyle(
             name="Section", fontName="Helvetica-Bold", fontSize=7.5, leading=9,
-            textColor=ACCENT, spaceBefore=1, spaceAfter=1,
+            textColor=ACCENT, spaceBefore=3, spaceAfter=2, leftIndent=0,
         ),
     )
 
@@ -3368,7 +3374,20 @@ def _section_title(text: str) -> Paragraph:
 def _body(text: str, size: float = 6.5) -> Paragraph:
     return Paragraph(
         text,
-        ParagraphStyle(name="Body", fontName="Helvetica", fontSize=size, leading=size + 2, textColor=colors.black),
+        ParagraphStyle(
+            name="Body", fontName="Helvetica", fontSize=size, leading=size + 2.5,
+            textColor=colors.black, leftIndent=0, spaceAfter=1,
+        ),
+    )
+
+
+def _bullet(text: str, size: float = 5.5) -> Paragraph:
+    return Paragraph(
+        f"• {text}",
+        ParagraphStyle(
+            name="Bullet", fontName="Helvetica", fontSize=size, leading=size + 2.5,
+            textColor=colors.black, leftIndent=10, bulletIndent=0, spaceAfter=1,
+        ),
     )
 
 
@@ -3558,11 +3577,14 @@ def generate_pdf_report(
     doc = SimpleDocTemplate(
         output_path,
         pagesize=letter,
-        leftMargin=0.38 * inch,
-        rightMargin=0.38 * inch,
-        topMargin=0.42 * inch,
-        bottomMargin=0.38 * inch,
+        leftMargin=PDF_PAGE_MARGIN,
+        rightMargin=PDF_PAGE_MARGIN,
+        topMargin=0.48 * inch,
+        bottomMargin=PDF_PAGE_MARGIN,
     )
+
+    content_w = PDF_CONTENT_W
+    chart_h = content_w / PDF_CHART_ASPECT
 
     styles = getSampleStyleSheet()
     report_label = ParagraphStyle(
@@ -3614,25 +3636,27 @@ def generate_pdf_report(
             ),
         ],
     ]
-    header_table = Table(header_data, colWidths=[4.7 * inch, 2.5 * inch])
+    header_table = Table(header_data, colWidths=[content_w * 0.63, content_w * 0.37])
     header_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("BOX", (1, 0), (1, 0), 1, rec_color),
-        ("BACKGROUND", (1, 0), (1, 1), colors.HexColor("#f8fafc")),
-        ("LINEBELOW", (0, -1), (-1, -1), 1.5, NAVY),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (1, 0), (1, -1), 6),
-        ("RIGHTPADDING", (1, 0), (1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (1, 0), (1, 1), 1, rec_color),
+        ("BACKGROUND", (1, 0), (1, 1), colors.HexColor("#faf8f5")),
+        ("LINEBELOW", (0, 0), (-1, -1), 1.5, NAVY),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (0, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, -1), 4),
+        ("LEFTPADDING", (1, 0), (1, -1), 8),
+        ("RIGHTPADDING", (1, 0), (1, -1), 8),
     ]))
     elements.append(header_table)
-    elements.append(Spacer(1, 2))
+    elements.append(Spacer(1, 4))
 
     elements.append(_section_title("Investment Highlights"))
     for bullet in build_investment_highlights(summary, industry, valuation):
-        elements.append(_body(f"• {bullet}", 5.5))
+        elements.append(_bullet(bullet))
     if full:
-        elements.append(Spacer(1, 1))
+        elements.append(Spacer(1, 2))
         elements.append(_section_title("Composite Investment Signal"))
         sig = full.signal
         elements.append(_body(
@@ -3642,11 +3666,11 @@ def generate_pdf_report(
             f"{sig.action_note}",
             5.2,
         ))
-    elements.append(Spacer(1, 2))
+    elements.append(Spacer(1, 3))
 
     elements.append(_section_title("Investment Thesis / Executive Summary"))
     elements.append(_body(build_executive_summary_pdf(summary, industry, valuation), 5.3))
-    elements.append(Spacer(1, 1.5))
+    elements.append(Spacer(1, 3))
 
     shares = get_shares_outstanding(data.info) if data and data.info else None
     pb = get_info_value(data.info, "priceToBook") if data else None
@@ -3667,31 +3691,38 @@ def generate_pdf_report(
         [_cell("Op. Margin"), _cell(_fmt_pct(summary.operating_margin)),
          _cell("FCF (TTM)"), _cell(format_large_number(summary.free_cash_flow))],
     ]
-    key_table = Table(key_data_rows, colWidths=[1.0 * inch, 1.15 * inch, 1.0 * inch, 1.15 * inch])
+    key_table = Table(
+        key_data_rows,
+        colWidths=[content_w * 0.22, content_w * 0.28, content_w * 0.22, content_w * 0.28],
+    )
+    key_table.setStyle(_table_style_header())
 
     tech = full.technical if full else None
     chart_buf = _price_chart(history, summary.ticker, tech)
-    if chart_buf:
-        top_row = Table(
-            [[key_table, Image(chart_buf, width=2.75 * inch, height=1.05 * inch)]],
-            colWidths=[4.15 * inch, 2.9 * inch],
-        )
-    else:
-        top_row = key_table
-    top_row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    key_table.setStyle(_table_style_header())
     elements.append(_section_title("Key Data & Market Highlights"))
-    elements.append(top_row)
+    elements.append(key_table)
+    if chart_buf:
+        elements.append(Spacer(1, 3))
+        elements.append(_section_title("Price Trend · SMA 42 / 252"))
+        chart_img = Image(chart_buf, width=content_w, height=chart_h)
+        chart_wrap = Table([[chart_img]], colWidths=[content_w])
+        chart_wrap.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(chart_wrap)
 
     if data:
         fv_rows = build_financial_valuation_summary_table(data, summary)
         if fv_rows:
-            elements.append(Spacer(1, 1.5))
+            elements.append(Spacer(1, 3))
             elements.append(_section_title("Financial & Valuation Summary"))
             elements.append(_body("(USD millions except per-share; E = forecast)", 5))
             ncols = len(fv_rows[0])
-            metric_w = 1.38 * inch
-            year_w = (7.24 * inch - metric_w) / max(ncols - 1, 1)
+            metric_w = 1.42 * inch
+            year_w = (content_w - metric_w) / max(ncols - 1, 1)
             elements.append(_make_styled_table(fv_rows, [metric_w] + [year_w] * (ncols - 1)))
 
     elements.append(PageBreak())
@@ -3707,25 +3738,25 @@ def generate_pdf_report(
 
     if full:
         elements.append(Spacer(1, 2))
-        elements.append(_section_title("Financial Statement Analysis (Topic 7–8)"))
+        elements.append(_section_title("Financial Statement Analysis"))
         elements.append(_body(build_fsa_narrative(full.fsa), 5.2))
         elements.append(_make_styled_table(
             build_fsa_table(full.fsa),
-            [1.35 * inch, 1.55 * inch, 2.1 * inch],
+            [content_w * 0.24, content_w * 0.28, content_w * 0.48],
             wrap_col=2,
         ))
         elements.append(Spacer(1, 2))
-        elements.append(_section_title("Technical Analysis (SMA 42/252 · Topic 5)"))
+        elements.append(_section_title("Technical Analysis (SMA 42/252)"))
         elements.append(_make_styled_table(
             build_technical_table(full.technical),
-            [1.2 * inch, 1.0 * inch, 2.4 * inch],
+            [content_w * 0.22, content_w * 0.18, content_w * 0.60],
             wrap_col=2,
         ))
         elements.append(Spacer(1, 2))
-        elements.append(_section_title("Quantitative Analysis (Topic 2–6)"))
+        elements.append(_section_title("Quantitative Analysis"))
         elements.append(_make_styled_table(
             build_quant_table(full.quant, full.backtest),
-            [1.35 * inch, 1.1 * inch, 2.3 * inch],
+            [content_w * 0.24, content_w * 0.20, content_w * 0.56],
             wrap_col=2,
         ))
 
@@ -3742,14 +3773,17 @@ def generate_pdf_report(
     elements.append(_section_title("Valuation Cross-Check"))
     elements.append(_make_styled_table(
         cross_rows,
-        [1.1 * inch, 0.72 * inch, 0.62 * inch, 0.78 * inch, 2.72 * inch],
+        [
+            content_w * 0.16, content_w * 0.10, content_w * 0.09,
+            content_w * 0.11, content_w * 0.54,
+        ],
         wrap_col=4,
     ))
     elements.append(Spacer(1, 2))
     elements.append(_section_title("DCF Valuation Summary (Simon FCFE)"))
     elements.append(_make_styled_table(
         build_dcf_detail_table_compact(valuation.dcf),
-        [1.55 * inch, 2.1 * inch],
+        [content_w * 0.42, content_w * 0.58],
     ))
     elements.append(Spacer(1, 4))
 
@@ -3778,7 +3812,10 @@ def generate_pdf_report(
     ])
     comp_table = Table(
         comp_rows,
-        colWidths=[0.55 * inch, 1.35 * inch, 0.85 * inch, 0.55 * inch, 0.75 * inch, 0.7 * inch, 0.7 * inch],
+        colWidths=[
+            content_w * 0.08, content_w * 0.24, content_w * 0.14,
+            content_w * 0.08, content_w * 0.12, content_w * 0.12, content_w * 0.22,
+        ],
     )
     sty = _table_style_header()
     sty.add("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ebf8ff"))

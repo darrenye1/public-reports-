@@ -220,7 +220,7 @@ def build_financial_statement_summary(
         weaknesses=weaknesses,
         notes=[
             f"Projection: {growth:.1f}% revenue growth (hist. CAGR + TTM blend)",
-            "Topic 8: sales forecast → NI via operating margin & tax",
+            "Sales forecast → NI via operating margin & tax",
         ],
     )
 
@@ -257,7 +257,7 @@ def build_fsa_narrative(fsa: FinancialStatementSummary) -> str:
         parts.append("Risks: " + "; ".join(fsa.weaknesses[:3]) + ".")
     if fsa.projection_growth_assumption is not None:
         parts.append(
-            f"3Y projection (Topic 8): ~{fsa.projection_growth_assumption:.1f}% revenue growth; "
+            f"3Y projection: ~{fsa.projection_growth_assumption:.1f}% revenue growth; "
             f"Y3 revenue {_fmt_large(fsa.projected_revenue_y3)}."
         )
     return " ".join(parts)
