@@ -1,5 +1,5 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-29T02:16:31Z",
+  "generated_at": "2026-06-29T03:03:00Z",
   "data_as_of": "2026-06-28",
   "news": [
     {
@@ -7,7 +7,7 @@ window.DASHBOARD_DATA = {
       "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
       "source": "Investor's Business Daily",
       "summary": "The U.S. and Iran reportedly have agreed to halt tit-for-tat attacks. Tesla sales and the June jobs report on are on tap.",
-      "published": "2026-06-29T01:46:04+00:00",
+      "published": "2026-06-29T02:48:57+00:00",
       "published_display": "Jun 29, 2026",
       "day": "2026-06-28"
     },

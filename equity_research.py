@@ -244,10 +244,11 @@ LIGHT_BG = colors.HexColor("#f7fafc")
 BORDER = colors.HexColor("#cbd5e0")
 GREEN = colors.HexColor("#276749")
 RED = colors.HexColor("#c53030")
-PDF_PAGE_MARGIN = 0.42 * inch
+PDF_PAGE_MARGIN = 0.38 * inch
 PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
-PDF_CHART_PAGE1_H = 1.42 * inch
-PDF_PAGE1_ROW_H = 0.36 * inch
+PDF_CHART_PAGE1_H = 1.48 * inch
+PDF_TABLE_ROW_H = 0.34 * inch
+PDF_CHART_DPI = 160
 
 
 # ---------------------------------------------------------------------------
@@ -3224,16 +3225,18 @@ def _price_chart(
     ticker: str,
     technical: TechnicalSummary | None = None,
     *,
-    fig_width: float = 4.6,
-    fig_height: float = 1.48,
+    width_pt: float | None = None,
+    height_pt: float | None = None,
 ) -> io.BytesIO | None:
     if history is None or history.empty:
         return None
     close = history["Close"].dropna()
     if close.empty:
         return None
-    compact = fig_width < 6.0
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=150)
+    w_in = (width_pt or PDF_CONTENT_W) / inch
+    h_in = (height_pt or PDF_CHART_PAGE1_H) / inch
+    compact = h_in < 1.25
+    fig, ax = plt.subplots(figsize=(w_in, h_in), dpi=PDF_CHART_DPI)
     plot_hist = close.tail(252) if len(close) > 252 else close
     ax.plot(plot_hist.index, plot_hist.values, color="#2b6cb0", linewidth=1.5, label="Price")
     if len(close) >= 42:
@@ -3245,16 +3248,16 @@ def _price_chart(
     title = f"{ticker} · Price & SMA"
     if technical and technical.golden_cross:
         title += " · GC"
-    ax.set_title(title, fontsize=8 if compact else 10, fontweight="bold", pad=4, color="#1a365d")
-    ax.tick_params(labelsize=6.5 if compact else 7.5, colors="#4a5568")
+    ax.set_title(title, fontsize=9 if not compact else 8, fontweight="bold", pad=5, color="#1a365d")
+    ax.tick_params(labelsize=7.5 if not compact else 6.5, colors="#4a5568")
     ax.grid(True, alpha=0.25, linewidth=0.6)
-    ax.legend(fontsize=5.5 if compact else 7, loc="upper left", framealpha=0.92, edgecolor="#cbd5e0")
+    ax.legend(fontsize=6.5 if not compact else 5.5, loc="upper left", framealpha=0.92, edgecolor="#cbd5e0")
     ax.set_facecolor("#fafafa")
     fig.patch.set_facecolor("white")
     ax.margins(x=0.02)
     plt.tight_layout(pad=0.35)
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    fig.savefig(buf, format="png", dpi=PDF_CHART_DPI, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -3316,8 +3319,26 @@ def _page1_cell(text: str) -> Paragraph:
     )
 
 
+def _page1_metric_cell(text: str) -> Paragraph:
+    return Paragraph(
+        str(text),
+        ParagraphStyle(name="P1Metric", fontName="Helvetica-Bold", fontSize=8, leading=11, textColor=NAVY),
+    )
+
+
+def _page1_note_cell(text: str) -> Paragraph:
+    return Paragraph(
+        str(text),
+        ParagraphStyle(
+            name="P1Note", fontName="Helvetica", fontSize=7.5, leading=10,
+            textColor=colors.black, wordWrap="CJK",
+        ),
+    )
+
+
 def _apply_page1_table_style(tbl: Table) -> None:
     sty = _table_style_header()
+    sty.add("FONTSIZE", (0, 0), (-1, -1), 8)
     sty.add("TOPPADDING", (0, 0), (-1, -1), 7)
     sty.add("BOTTOMPADDING", (0, 0), (-1, -1), 7)
     sty.add("LEFTPADDING", (0, 0), (-1, -1), 6)
@@ -3457,24 +3478,37 @@ def _make_styled_table(
     metric_label_col: bool = True,
     allow_split: bool = False,
     wrap_col: int | None = None,
+    fill_page: bool = False,
+    row_height: float | None = None,
 ) -> Table:
     """Build a table with correct header / row-label / data cell styles."""
+    th_fn = _page1_th_cell if fill_page else _th_cell
+    cell_fn = _page1_cell if fill_page else _cell
+    metric_fn = _page1_metric_cell if fill_page else _metric_cell
+    note_fn = _page1_note_cell if fill_page else _note_cell
+
     table_data: list[list] = []
     for ri, row in enumerate(rows):
         if ri == 0:
-            table_data.append([_th_cell(str(c)) for c in row])
+            table_data.append([th_fn(str(c)) for c in row])
         elif metric_label_col and len(row) > 1:
-            cells: list = [_metric_cell(row[0])]
+            cells: list = [metric_fn(row[0])]
             for col_i, val in enumerate(row[1:], start=1):
-                cells.append(_note_cell(str(val)) if wrap_col == col_i else _cell(str(val)))
+                cells.append(note_fn(str(val)) if wrap_col == col_i else cell_fn(str(val)))
             table_data.append(cells)
         else:
             cells = []
             for col_i, val in enumerate(row):
-                cells.append(_note_cell(str(val)) if wrap_col == col_i else _cell(str(val)))
+                cells.append(note_fn(str(val)) if wrap_col == col_i else cell_fn(str(val)))
             table_data.append(cells)
-    tbl = Table(table_data, colWidths=col_widths)
-    tbl.setStyle(_table_style_header())
+
+    rh = row_height or (PDF_TABLE_ROW_H if fill_page else None)
+    row_heights = [rh] * len(table_data) if rh else None
+    tbl = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
+    if fill_page:
+        _apply_page1_table_style(tbl)
+    else:
+        tbl.setStyle(_table_style_header())
     if not allow_split:
         tbl.splitByRow = 0
         tbl.splitInRow = 0
@@ -3610,7 +3644,7 @@ def _build_pillar_snapshot_table(
     tbl = Table(
         rows,
         colWidths=[content_w * 0.15, content_w * 0.20, content_w * 0.53, content_w * 0.12],
-        rowHeights=[PDF_PAGE1_ROW_H] * n,
+        rowHeights=[PDF_TABLE_ROW_H] * n,
     )
     _apply_page1_table_style(tbl)
     tbl.splitByRow = 0
@@ -3669,8 +3703,8 @@ def generate_pdf_report(
         pagesize=letter,
         leftMargin=PDF_PAGE_MARGIN,
         rightMargin=PDF_PAGE_MARGIN,
-        topMargin=0.48 * inch,
-        bottomMargin=PDF_PAGE_MARGIN,
+        topMargin=0.44 * inch,
+        bottomMargin=0.40 * inch,
     )
 
     content_w = PDF_CONTENT_W
@@ -3788,12 +3822,12 @@ def generate_pdf_report(
     key_table = Table(
         key_data_rows,
         colWidths=[content_w * 0.22, content_w * 0.28, content_w * 0.22, content_w * 0.28],
-        rowHeights=[PDF_PAGE1_ROW_H] * key_n,
+        rowHeights=[PDF_TABLE_ROW_H] * key_n,
     )
     _apply_page1_table_style(key_table)
 
     tech = full.technical if full else None
-    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=7.0, fig_height=1.42)
+    chart_buf = _price_chart(history, summary.ticker, tech, width_pt=content_w, height_pt=PDF_CHART_PAGE1_H)
     elements.append(_section_title("Key Data & Market Highlights"))
     elements.append(key_table)
     if chart_buf:
@@ -3821,33 +3855,34 @@ def generate_pdf_report(
             ncols = len(fv_rows[0])
             metric_w = 1.35 * inch
             year_w = (content_w - metric_w) / max(ncols - 1, 1)
-            fv_tbl = _make_styled_table(fv_rows, [metric_w] + [year_w] * (ncols - 1))
+            fv_tbl = _make_styled_table(
+                fv_rows, [metric_w] + [year_w] * (ncols - 1),
+                fill_page=True, row_height=0.32 * inch,
+            )
             fv_tbl.splitByRow = 0
             elements.append(fv_tbl)
 
     if full:
-        elements.append(Spacer(1, 1))
+        elements.append(Spacer(1, 2))
         elements.append(_section_title("Financial Statement Analysis"))
-        elements.append(_body(build_fsa_narrative(full.fsa), 5.0))
+        elements.append(_body(build_fsa_narrative(full.fsa), 5.5))
         elements.append(_make_styled_table(
             build_fsa_table(full.fsa),
             [content_w * 0.24, content_w * 0.28, content_w * 0.48],
-            wrap_col=2,
+            wrap_col=2, fill_page=True,
         ))
-        elements.append(Spacer(1, 1))
+        elements.append(Spacer(1, 2))
         elements.append(_section_title("Technical & Quantitative Analysis"))
         half_w = content_w * 0.49
         ta_table = _make_styled_table(
             build_technical_table(full.technical),
             [half_w * 0.30, half_w * 0.22, half_w * 0.48],
-            wrap_col=2,
-            allow_split=True,
+            wrap_col=2, allow_split=True, fill_page=True,
         )
         quant_table = _make_styled_table(
             build_quant_table(full.quant, full.backtest),
             [half_w * 0.32, half_w * 0.24, half_w * 0.44],
-            wrap_col=2,
-            allow_split=True,
+            wrap_col=2, allow_split=True, fill_page=True,
         )
         ta_quant_row = Table([[ta_table, quant_table]], colWidths=[half_w, half_w])
         ta_quant_row.setStyle(TableStyle([
@@ -3857,18 +3892,22 @@ def generate_pdf_report(
             ("RIGHTPADDING", (1, 0), (1, 0), 0),
         ]))
         elements.append(ta_quant_row)
-        elements.append(Spacer(1, 1))
-        industry_snap = _truncate(industry.business_summary, 380)
+        elements.append(Spacer(1, 2))
+        industry_snap = _truncate(industry.business_summary, 520)
         snap_text = (
             f"<b>Industry Snapshot</b> — {summary.sector} / {summary.industry}. "
             f"{industry_snap}"
         )
         if industry.key_trends:
-            snap_text += "<br/><b>Trends:</b> " + "; ".join(industry.key_trends[:3])
+            snap_text += "<br/><br/><b>Key Trends</b><br/>" + "<br/>".join(
+                f"• {t}" for t in industry.key_trends[:4]
+            )
         if industry.risks:
-            snap_text += "<br/><b>Risks:</b> " + "; ".join(industry.risks[:2])
+            snap_text += "<br/><br/><b>Risk Factors</b><br/>" + "<br/>".join(
+                f"• {r}" for r in industry.risks[:3]
+            )
         elements.append(_section_title("Industry Context"))
-        elements.append(_body(snap_text, 5.2))
+        elements.append(_body(snap_text, 5.5))
 
     elements.append(PageBreak())
 
@@ -3879,7 +3918,7 @@ def generate_pdf_report(
     ))
 
     cross_rows = build_valuation_crosscheck_table(valuation, summary)
-    elements.append(Spacer(1, 1))
+    elements.append(Spacer(1, 2))
     elements.append(_section_title("Valuation Cross-Check"))
     elements.append(_make_styled_table(
         cross_rows,
@@ -3887,52 +3926,57 @@ def generate_pdf_report(
             content_w * 0.16, content_w * 0.10, content_w * 0.09,
             content_w * 0.11, content_w * 0.54,
         ],
-        wrap_col=4,
+        wrap_col=4, fill_page=True,
     ))
-    elements.append(Spacer(1, 1))
+    elements.append(Spacer(1, 2))
     elements.append(_section_title("DCF Valuation Summary (Simon FCFE)"))
     elements.append(_make_styled_table(
         build_dcf_detail_table_compact(valuation.dcf),
         [content_w * 0.42, content_w * 0.58],
+        fill_page=True,
     ))
-    elements.append(Spacer(1, 2))
+    elements.append(Spacer(1, 3))
 
-    industry_overview = _truncate(industry.business_summary, 280)
+    industry_overview = _truncate(industry.business_summary, 400)
     industry_text = (
         f"<b>Industry Overview</b><br/>{industry_overview}<br/><br/>"
-        f"<b>Key Trends</b><br/>" + "<br/>".join(f"• {t}" for t in industry.key_trends[:4]) + "<br/><br/>"
-        f"<b>Risk Factors</b><br/>" + "<br/>".join(f"• {r}" for r in industry.risks[:4])
+        f"<b>Key Trends</b><br/>" + "<br/>".join(f"• {t}" for t in industry.key_trends[:5]) + "<br/><br/>"
+        f"<b>Risk Factors</b><br/>" + "<br/>".join(f"• {r}" for r in industry.risks[:5])
     )
 
     comp_rows = [[
-        _th_cell("Ticker"), _th_cell("Company"), _th_cell("Market Cap"),
-        _th_cell("P/E"), _th_cell("EV/EBITDA"), _th_cell("Net Margin"), _th_cell("Rev Growth"),
+        _page1_th_cell("Ticker"), _page1_th_cell("Company"), _page1_th_cell("Market Cap"),
+        _page1_th_cell("P/E"), _page1_th_cell("EV/EBITDA"), _page1_th_cell("Net Margin"),
+        _page1_th_cell("Rev Growth"),
     ]]
     for p in competitors.peers:
         comp_rows.append([
-            _cell(p.ticker), _cell(p.name[:22]), _cell(format_large_number(p.market_cap)),
-            _cell(_fmt_ratio(p.pe_ratio)), _cell(_fmt_ratio(p.ev_ebitda)),
-            _cell(_fmt_pct(p.profit_margin)), _cell(_fmt_pct(p.revenue_growth, signed=True)),
+            _page1_cell(p.ticker), _page1_cell(p.name[:22]), _page1_cell(format_large_number(p.market_cap)),
+            _page1_cell(_fmt_ratio(p.pe_ratio)), _page1_cell(_fmt_ratio(p.ev_ebitda)),
+            _page1_cell(_fmt_pct(p.profit_margin)), _page1_cell(_fmt_pct(p.revenue_growth, signed=True)),
         ])
     comp_rows.append([
-        _cell(f"{summary.ticker}*"), _cell(summary.company_name[:22]),
-        _cell(format_large_number(summary.market_cap)), _cell(_fmt_ratio(summary.pe_ratio)),
-        _cell(_fmt_ratio(summary.ev_ebitda)), _cell(_fmt_pct(summary.profit_margin)),
-        _cell(_fmt_pct(summary.revenue_growth, signed=True)),
+        _page1_cell(f"{summary.ticker}*"), _page1_cell(summary.company_name[:22]),
+        _page1_cell(format_large_number(summary.market_cap)), _page1_cell(_fmt_ratio(summary.pe_ratio)),
+        _page1_cell(_fmt_ratio(summary.ev_ebitda)), _page1_cell(_fmt_pct(summary.profit_margin)),
+        _page1_cell(_fmt_pct(summary.revenue_growth, signed=True)),
     ])
+    comp_n = len(comp_rows)
     comp_table = Table(
         comp_rows,
         colWidths=[
             content_w * 0.08, content_w * 0.24, content_w * 0.14,
             content_w * 0.08, content_w * 0.12, content_w * 0.12, content_w * 0.22,
         ],
+        rowHeights=[PDF_TABLE_ROW_H] * comp_n,
     )
-    sty = _table_style_header()
-    sty.add("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ebf8ff"))
-    comp_table.setStyle(sty)
+    _apply_page1_table_style(comp_table)
+    comp_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ebf8ff")),
+    ]))
 
     elements.append(_section_title("Industry & Competitive Landscape"))
-    elements.append(_body(industry_text, 5.3))
+    elements.append(_body(industry_text, 5.5))
     elements.append(Spacer(1, 2))
     elements.append(_section_title("Peer Comparison"))
     comp_table.splitByRow = 0
@@ -3942,7 +3986,7 @@ def generate_pdf_report(
         f"* Subject company. {competitors.relative_position}. "
         f"{build_financial_health_summary(summary)} "
         f"Source: Yahoo Finance. Not investment advice.",
-        5,
+        5.5,
     ))
 
     doc.build(elements, onFirstPage=page_draw, onLaterPages=page_draw)
