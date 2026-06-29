@@ -75,6 +75,41 @@ def _score_to_rating(score: float) -> str:
     return "HOLD"
 
 
+_RATING_RANK = {"BUY": 5, "OVERWEIGHT": 4, "HOLD": 3, "UNDERWEIGHT": 2, "SELL": 1}
+
+
+def _bearish_cap(rating: str, floor: str) -> str:
+    """Cap rating at floor when valuation is materially negative (floor is more bearish)."""
+    if _RATING_RANK.get(rating, 3) > _RATING_RANK[floor]:
+        return floor
+    return rating
+
+
+def _apply_valuation_anchor(
+    comp_rating: str,
+    composite: float,
+    upside_pct: float | None,
+    fund_rating: str,
+) -> str:
+    """Prevent composite HOLD/BUY when target implies large downside."""
+    fr = fund_rating.upper()
+    if upside_pct is not None:
+        if upside_pct <= -25:
+            return "SELL" if composite <= 0.05 else "UNDERWEIGHT"
+        if upside_pct <= -15 or fr == "SELL":
+            return _bearish_cap(comp_rating, "UNDERWEIGHT")
+        if upside_pct <= -10 and fr == "UNDERWEIGHT":
+            return _bearish_cap(comp_rating, "HOLD")
+        if upside_pct >= 35 and composite >= 0.50:
+            return "BUY"
+        if upside_pct >= 20 and composite >= 0.30:
+            if _RATING_RANK.get(comp_rating, 3) < _RATING_RANK["OVERWEIGHT"]:
+                return "OVERWEIGHT"
+    elif fr == "SELL":
+        return _bearish_cap(comp_rating, "UNDERWEIGHT")
+    return comp_rating
+
+
 def blend_investment_signal(
     fundamental_rating: str,
     upside_pct: float | None,
@@ -106,8 +141,15 @@ def blend_investment_signal(
     confluence = aligned / 4 * 100
 
     comp_rating = _score_to_rating(composite)
+    anchored = _apply_valuation_anchor(comp_rating, composite, upside_pct, fundamental_rating)
+    valuation_overrode = anchored != comp_rating
+    comp_rating = anchored
 
     notes: list[str] = []
+    if valuation_overrode and upside_pct is not None and upside_pct <= -10:
+        notes.append(f"valuation anchor: {upside_pct:+.0f}% upside vs target")
+    elif valuation_overrode and upside_pct is not None and upside_pct >= 20:
+        notes.append(f"valuation anchor: {upside_pct:+.0f}% upside vs target")
     if technical.golden_cross:
         notes.append("recent Golden Cross")
     if f_score > 0.2 and t_score > 0.2:

@@ -246,7 +246,8 @@ GREEN = colors.HexColor("#276749")
 RED = colors.HexColor("#c53030")
 PDF_PAGE_MARGIN = 0.42 * inch
 PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
-PDF_CHART_FULL_H = 1.62 * inch
+PDF_CHART_SIDE_W_RATIO = 0.38
+PDF_CHART_SIDE_H = 1.05 * inch
 
 
 # ---------------------------------------------------------------------------
@@ -3372,8 +3373,8 @@ def _section_title(text: str) -> Paragraph:
     return Paragraph(
         text.upper(),
         ParagraphStyle(
-            name="Section", fontName="Helvetica-Bold", fontSize=7.5, leading=9,
-            textColor=ACCENT, spaceBefore=3, spaceAfter=2, leftIndent=0,
+            name="Section", fontName="Helvetica-Bold", fontSize=7.5, leading=8.5,
+            textColor=ACCENT, spaceBefore=2, spaceAfter=1, leftIndent=0,
         ),
     )
 
@@ -3382,8 +3383,8 @@ def _body(text: str, size: float = 6.5) -> Paragraph:
     return Paragraph(
         text,
         ParagraphStyle(
-            name="Body", fontName="Helvetica", fontSize=size, leading=size + 2.5,
-            textColor=colors.black, leftIndent=0, spaceAfter=1,
+            name="Body", fontName="Helvetica", fontSize=size, leading=size + 1.5,
+            textColor=colors.black, leftIndent=0, spaceAfter=0,
         ),
     )
 
@@ -3392,8 +3393,8 @@ def _bullet(text: str, size: float = 5.5) -> Paragraph:
     return Paragraph(
         f"• {text}",
         ParagraphStyle(
-            name="Bullet", fontName="Helvetica", fontSize=size, leading=size + 2.5,
-            textColor=colors.black, leftIndent=10, bulletIndent=0, spaceAfter=1,
+            name="Bullet", fontName="Helvetica", fontSize=size, leading=size + 1.5,
+            textColor=colors.black, leftIndent=8, bulletIndent=0, spaceAfter=0,
         ),
     )
 
@@ -3419,10 +3420,10 @@ def _table_style_header() -> TableStyle:
         ("FONTSIZE", (0, 0), (-1, -1), 6),
         ("GRID", (0, 0), (-1, -1), 0.25, BORDER),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
     ])
 
@@ -3643,6 +3644,8 @@ def generate_pdf_report(
     )
 
     content_w = PDF_CONTENT_W
+    chart_w = content_w * PDF_CHART_SIDE_W_RATIO
+    key_w = content_w - chart_w - 0.06 * inch
 
     styles = getSampleStyleSheet()
     report_label = ParagraphStyle(
@@ -3701,33 +3704,32 @@ def generate_pdf_report(
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("BACKGROUND", (1, 0), (1, 0), rec_bg),
         ("LINEBEFORE", (1, 0), (1, 0), 2.5, rec_accent),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ("LEFTPADDING", (0, 0), (0, 0), 0),
         ("RIGHTPADDING", (0, 0), (0, 0), 10),
         ("LEFTPADDING", (1, 0), (1, 0), 10),
         ("RIGHTPADDING", (1, 0), (1, 0), 10),
     ]))
     elements.append(header_table)
-    elements.append(Spacer(1, 3))
+    elements.append(Spacer(1, 2))
     elements.append(_header_rule(content_w))
-    elements.append(Spacer(1, 5))
+    elements.append(Spacer(1, 3))
 
     elements.append(_section_title("Investment Highlights"))
     for bullet in build_investment_highlights(summary, industry, valuation):
         elements.append(_bullet(bullet))
     if full:
-        elements.append(Spacer(1, 2))
+        elements.append(Spacer(1, 1))
         elements.append(_section_title("Multi-Pillar Investment Signal"))
         elements.append(_build_pillar_snapshot_table(full, valuation, rating, content_w))
         sig = full.signal
-        elements.append(Spacer(1, 1))
-        elements.append(_body(sig.action_note, 5.2))
-    elements.append(Spacer(1, 2))
+        elements.append(_body(sig.action_note, 5.0))
+    elements.append(Spacer(1, 1))
 
     elements.append(_section_title("Investment Thesis / Executive Summary"))
-    elements.append(_body(build_executive_summary_pdf(summary, industry, valuation), 5.3))
-    elements.append(Spacer(1, 2))
+    elements.append(_body(build_executive_summary_pdf(summary, industry, valuation), 5.2))
+    elements.append(Spacer(1, 1))
 
     shares = get_shares_outstanding(data.info) if data and data.info else None
     pb = get_info_value(data.info, "priceToBook") if data else None
@@ -3754,54 +3756,62 @@ def generate_pdf_report(
     ]
     key_table = Table(
         key_data_rows,
-        colWidths=[content_w * 0.22, content_w * 0.28, content_w * 0.22, content_w * 0.28],
+        colWidths=[key_w * 0.24, key_w * 0.26, key_w * 0.24, key_w * 0.26],
     )
     key_table.setStyle(_table_style_header())
 
     tech = full.technical if full else None
-    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=7.0, fig_height=1.62)
-    elements.append(_section_title("Key Data & Market Highlights"))
-    elements.append(key_table)
+    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=4.2, fig_height=1.05)
+    elements.append(_section_title("Key Data & Price Trend"))
     if chart_buf:
-        elements.append(Spacer(1, 2))
-        elements.append(_section_title("Price Trend · SMA 42 / 252 (252D)"))
-        chart_img = Image(chart_buf, width=content_w, height=PDF_CHART_FULL_H)
-        elements.append(chart_img)
-
-    if data:
-        fv_rows = build_financial_valuation_summary_table(data, summary)
-        if fv_rows:
-            elements.append(Spacer(1, 2))
-            elements.append(_section_title("Financial & Valuation Summary"))
-            elements.append(_body("(USD millions except per-share; A = actual, E = forecast)", 5))
-            ncols = len(fv_rows[0])
-            metric_w = 1.38 * inch
-            year_w = (content_w - metric_w) / max(ncols - 1, 1)
-            fv_tbl = _make_styled_table(fv_rows, [metric_w] + [year_w] * (ncols - 1))
-            fv_tbl.splitByRow = 1
-            elements.append(fv_tbl)
+        chart_img = Image(chart_buf, width=chart_w, height=PDF_CHART_SIDE_H)
+        data_chart_row = Table(
+            [[key_table, chart_img]],
+            colWidths=[key_w, chart_w],
+        )
+        data_chart_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 3),
+        ]))
+        elements.append(data_chart_row)
+    else:
+        elements.append(key_table)
 
     elements.append(PageBreak())
 
     page_hdr = ParagraphStyle(
-        "PageHdr", fontName="Helvetica-Bold", fontSize=9, textColor=NAVY, spaceAfter=2,
+        "PageHdr", fontName="Helvetica-Bold", fontSize=8.5, textColor=NAVY, spaceAfter=1,
     )
     elements.append(Paragraph(
         f"<b>Page 2 of 3</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Statement Analysis · Technical · Quantitative · {data_as_of}",
+        f"Financials · Analysis · {data_as_of}",
         page_hdr,
     ))
 
+    if data:
+        fv_rows = build_financial_valuation_summary_table(data, summary)
+        if fv_rows:
+            elements.append(Spacer(1, 1))
+            elements.append(_section_title("Financial & Valuation Summary"))
+            elements.append(_body("(USD millions except per-share; A = actual, E = forecast)", 5))
+            ncols = len(fv_rows[0])
+            metric_w = 1.35 * inch
+            year_w = (content_w - metric_w) / max(ncols - 1, 1)
+            fv_tbl = _make_styled_table(fv_rows, [metric_w] + [year_w] * (ncols - 1))
+            fv_tbl.splitByRow = 0
+            elements.append(fv_tbl)
+
     if full:
-        elements.append(Spacer(1, 2))
+        elements.append(Spacer(1, 1))
         elements.append(_section_title("Financial Statement Analysis"))
-        elements.append(_body(build_fsa_narrative(full.fsa), 5.2))
+        elements.append(_body(build_fsa_narrative(full.fsa), 5.0))
         elements.append(_make_styled_table(
             build_fsa_table(full.fsa),
             [content_w * 0.24, content_w * 0.28, content_w * 0.48],
             wrap_col=2,
         ))
-        elements.append(Spacer(1, 2))
+        elements.append(Spacer(1, 1))
         elements.append(_section_title("Technical & Quantitative Analysis"))
         half_w = content_w * 0.49
         ta_table = _make_styled_table(
@@ -3824,8 +3834,8 @@ def generate_pdf_report(
             ("RIGHTPADDING", (1, 0), (1, 0), 0),
         ]))
         elements.append(ta_quant_row)
-        elements.append(Spacer(1, 2))
-        industry_snap = _truncate(industry.business_summary, 320)
+        elements.append(Spacer(1, 1))
+        industry_snap = _truncate(industry.business_summary, 380)
         snap_text = (
             f"<b>Industry Snapshot</b> — {summary.sector} / {summary.industry}. "
             f"{industry_snap}"
@@ -3835,7 +3845,7 @@ def generate_pdf_report(
         if industry.risks:
             snap_text += "<br/><b>Risks:</b> " + "; ".join(industry.risks[:2])
         elements.append(_section_title("Industry Context"))
-        elements.append(_body(snap_text, 5.3))
+        elements.append(_body(snap_text, 5.2))
 
     elements.append(PageBreak())
 
@@ -3846,7 +3856,7 @@ def generate_pdf_report(
     ))
 
     cross_rows = build_valuation_crosscheck_table(valuation, summary)
-    elements.append(Spacer(1, 2))
+    elements.append(Spacer(1, 1))
     elements.append(_section_title("Valuation Cross-Check"))
     elements.append(_make_styled_table(
         cross_rows,
@@ -3856,13 +3866,13 @@ def generate_pdf_report(
         ],
         wrap_col=4,
     ))
-    elements.append(Spacer(1, 2))
+    elements.append(Spacer(1, 1))
     elements.append(_section_title("DCF Valuation Summary (Simon FCFE)"))
     elements.append(_make_styled_table(
         build_dcf_detail_table_compact(valuation.dcf),
         [content_w * 0.42, content_w * 0.58],
     ))
-    elements.append(Spacer(1, 4))
+    elements.append(Spacer(1, 2))
 
     industry_overview = _truncate(industry.business_summary, 280)
     industry_text = (
@@ -3899,8 +3909,8 @@ def generate_pdf_report(
     comp_table.setStyle(sty)
 
     elements.append(_section_title("Industry & Competitive Landscape"))
-    elements.append(_body(industry_text, 5.5))
-    elements.append(Spacer(1, 3))
+    elements.append(_body(industry_text, 5.3))
+    elements.append(Spacer(1, 2))
     elements.append(_section_title("Peer Comparison"))
     comp_table.splitByRow = 0
     elements.append(comp_table)

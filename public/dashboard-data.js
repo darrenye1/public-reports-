@@ -1,14 +1,14 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-28T17:00:25Z",
+  "generated_at": "2026-06-29T02:00:47Z",
   "data_as_of": "2026-06-28",
   "news": [
     {
-      "title": "The Best High-Yield Income Investments for 2026, Ranked",
-      "url": "https://www.barrons.com/articles/best-income-investments-b30f79d9?siteid=yhoof2&yptr=yahoo",
-      "source": "Barrons.com",
-      "summary": "When it comes to income, investors essentially have two choices: stocks or bonds.  While the S&P 500 yields just 1%, there are plenty of pockets of the stock market where investors can snag 3%-plus dividend yields, including utilities, REITs, pipelines, and one of the most hated ",
-      "published": "2026-06-28T15:57:00+00:00",
-      "published_display": "Jun 28, 2026",
+      "title": "Dow Jones Futures Rise On U.S.-Iran News; Market At Tipping Point",
+      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
+      "source": "Investor's Business Daily",
+      "summary": "The U.S. and Iran reportedly have agreed to halt tit-for-tat attacks. Tesla sales and the June jobs report on are on tap.",
+      "published": "2026-06-29T01:46:04+00:00",
+      "published_display": "Jun 29, 2026",
       "day": "2026-06-28"
     },
     {
