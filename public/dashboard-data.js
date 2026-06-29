@@ -1,13 +1,13 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-28T15:08:12Z",
+  "generated_at": "2026-06-28T17:00:25Z",
   "data_as_of": "2026-06-28",
   "news": [
     {
-      "title": "AI jitters meet a jobs report and falling oil prices: What to watch this week",
-      "url": "https://finance.yahoo.com/markets/article/ai-jitters-meet-a-jobs-report-and-falling-oil-prices-what-to-watch-this-week-100000636.html",
-      "source": "Yahoo Finance",
-      "summary": "After a roller-coaster week in the markets, thanks to flip-flopping sentiment about AI spending, investors will get plenty more action on the calendar as we enter jobs week.",
-      "published": "2026-06-28T10:00:00+00:00",
+      "title": "The Best High-Yield Income Investments for 2026, Ranked",
+      "url": "https://www.barrons.com/articles/best-income-investments-b30f79d9?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "When it comes to income, investors essentially have two choices: stocks or bonds.  While the S&P 500 yields just 1%, there are plenty of pockets of the stock market where investors can snag 3%-plus dividend yields, including utilities, REITs, pipelines, and one of the most hated ",
+      "published": "2026-06-28T15:57:00+00:00",
       "published_display": "Jun 28, 2026",
       "day": "2026-06-28"
     },
