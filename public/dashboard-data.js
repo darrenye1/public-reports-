@@ -1,13 +1,22 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-29T04:08:35Z",
+  "generated_at": "2026-06-29T16:52:41Z",
   "data_as_of": "2026-06-29",
   "news": [
     {
-      "title": "Dow Jones Futures Rise On U.S.-Iran News; Market At Tipping Point",
-      "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
-      "source": "Investor's Business Daily",
-      "summary": "The U.S. and Iran reportedly have agreed to halt tit-for-tat attacks. Tesla sales and the June jobs report on are on tap.",
-      "published": "2026-06-29T03:03:13+00:00",
+      "title": "Treasury Yields Rise, Dollar Weakens on U.S.-Iran Diplomacy Hopes",
+      "url": "https://www.barrons.com/livecoverage/stock-market-news-today-062926/card/treasury-yields-rise-dollar-weakens-on-u-s-iran-diplomacy-hopes-gYBmDo4Yl7s7qNWMLpjM?siteid=yhoof2&yptr=yahoo",
+      "source": "Barrons.com",
+      "summary": "U.S. Treasury yields were rising in early trade reflecting the market's continued expectation of Federal Reserve rate hikes, while the dollar is slightly lower as the U.S. and Iran make renewed diplomatic efforts for a peaceful resolution.  The 10-year U.S. Treasury yield rose 1.",
+      "published": "2026-06-29T09:55:20+00:00",
+      "published_display": "Jun 29, 2026",
+      "day": "2026-06-29"
+    },
+    {
+      "title": "S&P 500, Dow, Nasdaq Futures Climb As US, Iran Reportedly Agree To Pause Further Escalation: SLS, WEN, MSTR, WDC Stocks In Focus",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/p-500-dow-nasdaq-futures-014545190.html",
+      "source": "Stocktwits",
+      "summary": "According to an Axios report, the U.S. and Iran have agreed to halt attacks and will meet on Tuesday in Qatar to renegotiate terms following the dispute that escalated over the weekend.",
+      "published": "2026-06-29T01:45:45+00:00",
       "published_display": "Jun 29, 2026",
       "day": "2026-06-28"
     },
@@ -61,10 +70,9 @@ window.DASHBOARD_DATA = {
     {
       "symbol": "^GSPC",
       "label": "S&P 500",
-      "last": 7354.02,
-      "change_pct": 6.49,
+      "last": 7414.99,
+      "change_pct": 7.37,
       "dates": [
-        "2026-04-01",
         "2026-04-02",
         "2026-04-06",
         "2026-04-07",
@@ -123,10 +131,10 @@ window.DASHBOARD_DATA = {
         "2026-06-23",
         "2026-06-24",
         "2026-06-25",
-        "2026-06-26"
+        "2026-06-26",
+        "2026-06-29"
       ],
       "series": [
-        95.22,
         95.32,
         95.74,
         95.82,
@@ -185,16 +193,16 @@ window.DASHBOARD_DATA = {
         106.66,
         106.55,
         106.54,
-        106.49
+        106.49,
+        107.37
       ]
     },
     {
       "symbol": "^DJI",
       "label": "Dow Jones",
-      "last": 51876.11,
-      "change_pct": 7.05,
+      "last": 52109.48,
+      "change_pct": 7.53,
       "dates": [
-        "2026-04-01",
         "2026-04-02",
         "2026-04-06",
         "2026-04-07",
@@ -253,10 +261,10 @@ window.DASHBOARD_DATA = {
         "2026-06-23",
         "2026-06-24",
         "2026-06-25",
-        "2026-06-26"
+        "2026-06-26",
+        "2026-06-29"
       ],
       "series": [
-        96.09,
         95.96,
         96.3,
         96.13,
@@ -315,16 +323,16 @@ window.DASHBOARD_DATA = {
         106.61,
         106.99,
         107.14,
-        107.05
+        107.05,
+        107.53
       ]
     },
     {
       "symbol": "^IXIC",
       "label": "Nasdaq Composite",
-      "last": 25297.62,
-      "change_pct": 7.77,
+      "last": 25662.34,
+      "change_pct": 9.32,
       "dates": [
-        "2026-04-01",
         "2026-04-02",
         "2026-04-06",
         "2026-04-07",
@@ -383,10 +391,10 @@ window.DASHBOARD_DATA = {
         "2026-06-23",
         "2026-06-24",
         "2026-06-25",
-        "2026-06-26"
+        "2026-06-26",
+        "2026-06-29"
       ],
       "series": [
-        93.04,
         93.2,
         93.7,
         93.8,
@@ -445,16 +453,16 @@ window.DASHBOARD_DATA = {
         109.0,
         108.53,
         108.03,
-        107.77
+        107.77,
+        109.32
       ]
     },
     {
       "symbol": "^RUT",
       "label": "Russell 2000",
-      "last": 3010.08,
-      "change_pct": 19.46,
+      "last": 2987.27,
+      "change_pct": 18.55,
       "dates": [
-        "2026-04-01",
         "2026-04-02",
         "2026-04-06",
         "2026-04-07",
@@ -513,10 +521,10 @@ window.DASHBOARD_DATA = {
         "2026-06-23",
         "2026-06-24",
         "2026-06-25",
-        "2026-06-26"
+        "2026-06-26",
+        "2026-06-29"
       ],
       "series": [
-        99.71,
         100.41,
         100.83,
         101.0,
@@ -575,7 +583,8 @@ window.DASHBOARD_DATA = {
         118.08,
         118.53,
         119.37,
-        119.46
+        119.46,
+        118.55
       ]
     }
   ]
