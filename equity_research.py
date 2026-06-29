@@ -246,8 +246,8 @@ GREEN = colors.HexColor("#276749")
 RED = colors.HexColor("#c53030")
 PDF_PAGE_MARGIN = 0.42 * inch
 PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
-PDF_CHART_SIDE_W_RATIO = 0.38
-PDF_CHART_SIDE_H = 1.05 * inch
+PDF_CHART_PAGE1_H = 1.42 * inch
+PDF_PAGE1_ROW_H = 0.36 * inch
 
 
 # ---------------------------------------------------------------------------
@@ -3302,6 +3302,29 @@ def _metric_cell(text: str) -> Paragraph:
     )
 
 
+def _page1_th_cell(text: str) -> Paragraph:
+    return Paragraph(
+        str(text),
+        ParagraphStyle(name="P1Th", fontName="Helvetica-Bold", fontSize=7.5, leading=10, textColor=colors.white),
+    )
+
+
+def _page1_cell(text: str) -> Paragraph:
+    return Paragraph(
+        str(text),
+        ParagraphStyle(name="P1Cell", fontName="Helvetica", fontSize=8, leading=11, textColor=colors.black),
+    )
+
+
+def _apply_page1_table_style(tbl: Table) -> None:
+    sty = _table_style_header()
+    sty.add("TOPPADDING", (0, 0), (-1, -1), 7)
+    sty.add("BOTTOMPADDING", (0, 0), (-1, -1), 7)
+    sty.add("LEFTPADDING", (0, 0), (-1, -1), 6)
+    sty.add("RIGHTPADDING", (0, 0), (-1, -1), 6)
+    tbl.setStyle(sty)
+
+
 def build_dcf_detail_table_compact(dcf: DCFResult) -> list[list[str]]:
     """Shorter DCF table for one-page PDF layout."""
     rows = [
@@ -3571,18 +3594,25 @@ def _build_pillar_snapshot_table(
         else f"Score {full.quant.quant_score:+.2f}"
     )
     rows = [
-        [_th_cell("Pillar"), _th_cell("Rating / Signal"), _th_cell("Key Metric"), _th_cell("Wt")],
-        [_cell("Valuation"), _cell(fund_rating), _cell(f"Blended PT {target}"), _cell("45%")],
-        [_cell("FSA"), _cell(sig.fsa_rating), _cell(f"Health {full.fsa.health_score:+.2f}"), _cell("20%")],
-        [_cell("Technical"), _cell(sig.technical_signal),
-         _cell(full.technical.trend + (f" · {full.technical.cross_type}" if full.technical.cross_type else "")),
-         _cell("20%")],
-        [_cell("Quantitative"), _cell(sig.quant_signal), _cell(q_metric), _cell("15%")],
-        [_cell("Composite"), _cell(sig.composite_rating),
-         _cell(f"Score {sig.composite_score:+.2f} · {sig.confluence_pct:.0f}% confluence"), _cell("—")],
+        [_page1_th_cell("Pillar"), _page1_th_cell("Rating / Signal"),
+         _page1_th_cell("Key Metric"), _page1_th_cell("Wt")],
+        [_page1_cell("Valuation"), _page1_cell(fund_rating), _page1_cell(f"Blended PT {target}"), _page1_cell("45%")],
+        [_page1_cell("FSA"), _page1_cell(sig.fsa_rating),
+         _page1_cell(f"Health {full.fsa.health_score:+.2f} · {full.fsa.health_rating}"), _page1_cell("20%")],
+        [_page1_cell("Technical"), _page1_cell(sig.technical_signal),
+         _page1_cell(full.technical.trend + (f" · {full.technical.cross_type}" if full.technical.cross_type else "")),
+         _page1_cell("20%")],
+        [_page1_cell("Quantitative"), _page1_cell(sig.quant_signal), _page1_cell(q_metric), _page1_cell("15%")],
+        [_page1_cell("Composite"), _page1_cell(sig.composite_rating),
+         _page1_cell(f"Score {sig.composite_score:+.2f} · {sig.confluence_pct:.0f}% confluence"), _page1_cell("—")],
     ]
-    tbl = Table(rows, colWidths=[content_w * 0.16, content_w * 0.22, content_w * 0.50, content_w * 0.12])
-    tbl.setStyle(_table_style_header())
+    n = len(rows)
+    tbl = Table(
+        rows,
+        colWidths=[content_w * 0.15, content_w * 0.20, content_w * 0.53, content_w * 0.12],
+        rowHeights=[PDF_PAGE1_ROW_H] * n,
+    )
+    _apply_page1_table_style(tbl)
     tbl.splitByRow = 0
     return tbl
 
@@ -3644,8 +3674,6 @@ def generate_pdf_report(
     )
 
     content_w = PDF_CONTENT_W
-    chart_w = content_w * PDF_CHART_SIDE_W_RATIO
-    key_w = content_w - chart_w - 0.06 * inch
 
     styles = getSampleStyleSheet()
     report_label = ParagraphStyle(
@@ -3736,47 +3764,42 @@ def generate_pdf_report(
     avg_vol = get_info_value(data.info, "averageVolume") if data else None
 
     key_data_rows = [
-        [_th_cell("Item"), _th_cell("Value"), _th_cell("Item"), _th_cell("Value")],
-        [_cell("Market Cap"), _cell(format_large_number(summary.market_cap)),
-         _cell("Shares Out."), _cell(f"{shares / 1e6:.1f}M" if shares else "N/A")],
-        [_cell("52-Week Range"), _cell(summary.fifty_two_week_range),
-         _cell("P/E (TTM)"), _cell(_fmt_ratio(summary.pe_ratio))],
-        [_cell("P/B"), _cell(_fmt_ratio(pb) if pb else "N/A"),
-         _cell("Beta"), _cell(f"{summary.beta:.2f}" if summary.beta else "N/A")],
-        [_cell("Avg Volume"), _cell(f"{avg_vol / 1e6:.2f}M" if avg_vol else "N/A"),
-         _cell("Analyst Rec."), _cell(summary.recommendation_key.title())],
-        [_cell("Revenue (TTM)"), _cell(format_large_number(summary.revenue)),
-         _cell("Rev Growth"), _cell(_fmt_pct(summary.revenue_growth, signed=True))],
-        [_cell("Op. Margin"), _cell(_fmt_pct(summary.operating_margin)),
-         _cell("FCF (TTM)"), _cell(format_large_number(summary.free_cash_flow))],
-        [_cell("Gross Margin"), _cell(_fmt_pct(summary.gross_margin)),
-         _cell("ROE"), _cell(_fmt_pct(summary.roe))],
-        [_cell("EV/EBITDA"), _cell(_fmt_ratio(summary.ev_ebitda)),
-         _cell("Debt/Equity"), _cell(_fmt_pct(summary.debt_to_equity))],
+        [_page1_th_cell("Item"), _page1_th_cell("Value"), _page1_th_cell("Item"), _page1_th_cell("Value")],
+        [_page1_cell("Market Cap"), _page1_cell(format_large_number(summary.market_cap)),
+         _page1_cell("Shares Out."), _page1_cell(f"{shares / 1e6:.1f}M" if shares else "N/A")],
+        [_page1_cell("52-Week Range"), _page1_cell(summary.fifty_two_week_range or "N/A"),
+         _page1_cell("P/E (TTM)"), _page1_cell(_fmt_ratio(summary.pe_ratio))],
+        [_page1_cell("P/B"), _page1_cell(_fmt_ratio(pb) if pb else "N/A"),
+         _page1_cell("Beta"), _page1_cell(f"{summary.beta:.2f}" if summary.beta else "N/A")],
+        [_page1_cell("Avg Volume"), _page1_cell(f"{avg_vol / 1e6:.2f}M" if avg_vol else "N/A"),
+         _page1_cell("Analyst Rec."), _page1_cell(summary.recommendation_key.replace("_", " ").title())],
+        [_page1_cell("Revenue (TTM)"), _page1_cell(format_large_number(summary.revenue)),
+         _page1_cell("Rev Growth"), _page1_cell(_fmt_pct(summary.revenue_growth, signed=True))],
+        [_page1_cell("Op. Margin"), _page1_cell(_fmt_pct(summary.operating_margin)),
+         _page1_cell("FCF (TTM)"), _page1_cell(format_large_number(summary.free_cash_flow))],
+        [_page1_cell("Gross Margin"), _page1_cell(_fmt_pct(summary.gross_margin)),
+         _page1_cell("ROE"), _page1_cell(_fmt_pct(summary.roe))],
+        [_page1_cell("EV/EBITDA"), _page1_cell(_fmt_ratio(summary.ev_ebitda)),
+         _page1_cell("Debt/Equity"), _page1_cell(_fmt_pct(summary.debt_to_equity))],
+        [_page1_cell("EPS (TTM)"), _page1_cell(f"${summary.eps:.2f}" if summary.eps else "N/A"),
+         _page1_cell("Div Yield"), _page1_cell(_fmt_pct(summary.dividend_yield))],
     ]
+    key_n = len(key_data_rows)
     key_table = Table(
         key_data_rows,
-        colWidths=[key_w * 0.24, key_w * 0.26, key_w * 0.24, key_w * 0.26],
+        colWidths=[content_w * 0.22, content_w * 0.28, content_w * 0.22, content_w * 0.28],
+        rowHeights=[PDF_PAGE1_ROW_H] * key_n,
     )
-    key_table.setStyle(_table_style_header())
+    _apply_page1_table_style(key_table)
 
     tech = full.technical if full else None
-    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=4.2, fig_height=1.05)
-    elements.append(_section_title("Key Data & Price Trend"))
+    chart_buf = _price_chart(history, summary.ticker, tech, fig_width=7.0, fig_height=1.42)
+    elements.append(_section_title("Key Data & Market Highlights"))
+    elements.append(key_table)
     if chart_buf:
-        chart_img = Image(chart_buf, width=chart_w, height=PDF_CHART_SIDE_H)
-        data_chart_row = Table(
-            [[key_table, chart_img]],
-            colWidths=[key_w, chart_w],
-        )
-        data_chart_row.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (0, 0), 3),
-        ]))
-        elements.append(data_chart_row)
-    else:
-        elements.append(key_table)
+        elements.append(Spacer(1, 2))
+        elements.append(_section_title("Price Trend · SMA 42 / 252"))
+        elements.append(Image(chart_buf, width=content_w, height=PDF_CHART_PAGE1_H))
 
     elements.append(PageBreak())
 
