@@ -1,13 +1,13 @@
 window.DASHBOARD_DATA = {
-  "generated_at": "2026-06-29T03:03:00Z",
-  "data_as_of": "2026-06-28",
+  "generated_at": "2026-06-29T04:08:35Z",
+  "data_as_of": "2026-06-29",
   "news": [
     {
       "title": "Dow Jones Futures Rise On U.S.-Iran News; Market At Tipping Point",
       "url": "https://www.investors.com/market-trend/stock-market-today/dow-jones-futures-stock-market-tipping-point-eli-lilly-tesla/?src=A00220&yptr=yahoo",
       "source": "Investor's Business Daily",
       "summary": "The U.S. and Iran reportedly have agreed to halt tit-for-tat attacks. Tesla sales and the June jobs report on are on tap.",
-      "published": "2026-06-29T02:48:57+00:00",
+      "published": "2026-06-29T03:03:13+00:00",
       "published_display": "Jun 29, 2026",
       "day": "2026-06-28"
     },
@@ -55,15 +55,6 @@ window.DASHBOARD_DATA = {
       "published": "2026-06-23T14:15:00+00:00",
       "published_display": "Jun 23, 2026",
       "day": "2026-06-23"
-    },
-    {
-      "title": "Circle Your Calendars for July 29. JPMorgan Executive Says Fed Chair Kevin Warsh Could Raise Rates in As Little as Six Weeks.",
-      "url": "https://finance.yahoo.com/economy/policy/articles/circle-calendars-july-29-jpmorgan-120140255.html",
-      "source": "24/7 Wall St.",
-      "summary": "Mark July 29 on the calendar. That is the next scheduled FOMC decision, and according to JPMorgan Asset Management CIO Bob Michael, every Fed meeting is now live for a potential rate hike, including the one roughly six weeks away. Michael told CNBC’s Closing Bell Overtime that ne",
-      "published": "2026-06-22T12:01:40+00:00",
-      "published_display": "Jun 22, 2026",
-      "day": "2026-06-22"
     }
   ],
   "indices": [

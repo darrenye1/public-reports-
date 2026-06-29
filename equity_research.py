@@ -248,6 +248,7 @@ PDF_PAGE_MARGIN = 0.38 * inch
 PDF_CONTENT_W = letter[0] - 2 * PDF_PAGE_MARGIN
 PDF_CHART_PAGE1_H = 1.48 * inch
 PDF_TABLE_ROW_H = 0.34 * inch
+PDF_TABLE_ROW_H_COMPACT = 0.23 * inch
 PDF_CHART_DPI = 160
 
 
@@ -2504,6 +2505,23 @@ def build_valuation_crosscheck_table(
     return rows
 
 
+def build_valuation_crosscheck_table_pdf(
+    valuation: ValuationSummary,
+    summary: FinancialSummary,
+) -> list[list[str]]:
+    """Essential valuation rows for the single-page financial appendix."""
+    full = build_valuation_crosscheck_table(valuation, summary)
+    if not full:
+        return full
+    keep = {
+        "DCF (Simon FCFE)",
+        "Comps — Blended (median of multiples + uplift anchors)",
+        "Analyst consensus (Yahoo Finance)",
+        "Blended target (weighted)",
+    }
+    return [full[0]] + [row for row in full[1:] if row[0] in keep]
+
+
 def recommendation_short(valuation: ValuationSummary) -> str:
     rec = valuation.recommendation.upper()
     for label in ("BUY", "OVERWEIGHT", "HOLD", "UNDERWEIGHT", "SELL"):
@@ -3346,6 +3364,16 @@ def _apply_page1_table_style(tbl: Table) -> None:
     tbl.setStyle(sty)
 
 
+def _apply_compact_table_style(tbl: Table) -> None:
+    sty = _table_style_header()
+    sty.add("FONTSIZE", (0, 0), (-1, -1), 7.5)
+    sty.add("TOPPADDING", (0, 0), (-1, -1), 5)
+    sty.add("BOTTOMPADDING", (0, 0), (-1, -1), 5)
+    sty.add("LEFTPADDING", (0, 0), (-1, -1), 5)
+    sty.add("RIGHTPADDING", (0, 0), (-1, -1), 5)
+    tbl.setStyle(sty)
+
+
 def build_dcf_detail_table_compact(dcf: DCFResult) -> list[list[str]]:
     """Shorter DCF table for one-page PDF layout."""
     rows = [
@@ -3357,6 +3385,20 @@ def build_dcf_detail_table_compact(dcf: DCFResult) -> list[list[str]]:
         ["PV explicit (5Y)", format_large_number(dcf.pv_explicit)],
         ["PV terminal", format_large_number(dcf.pv_terminal)],
         ["Equity value (adj.)", format_large_number(dcf.equity_value)],
+        ["Implied price", f"${dcf.implied_price:.2f}" if dcf.implied_price else "N/A"],
+    ]
+    if dcf.upside_pct is not None:
+        rows.append(["vs. current", _fmt_pct(dcf.upside_pct, signed=True)])
+    return rows
+
+
+def build_dcf_detail_table_mini(dcf: DCFResult) -> list[list[str]]:
+    """Minimal DCF summary for side-by-side PDF layout."""
+    rows = [
+        ["Item", "Value"],
+        ["Ke · Terminal g", f"{dcf.wacc:.2%} · {dcf.terminal_growth:.2%}"],
+        ["FCFE growth", f"{dcf.fcf_growth:.2%}"],
+        ["Equity value", format_large_number(dcf.equity_value)],
         ["Implied price", f"${dcf.implied_price:.2f}" if dcf.implied_price else "N/A"],
     ]
     if dcf.upside_pct is not None:
@@ -3480,12 +3522,19 @@ def _make_styled_table(
     wrap_col: int | None = None,
     fill_page: bool = False,
     row_height: float | None = None,
+    compact: bool = False,
 ) -> Table:
     """Build a table with correct header / row-label / data cell styles."""
-    th_fn = _page1_th_cell if fill_page else _th_cell
-    cell_fn = _page1_cell if fill_page else _cell
-    metric_fn = _page1_metric_cell if fill_page else _metric_cell
-    note_fn = _page1_note_cell if fill_page else _note_cell
+    if compact:
+        th_fn = _page1_th_cell
+        cell_fn = _page1_cell
+        metric_fn = _page1_metric_cell
+        note_fn = _page1_note_cell
+    else:
+        th_fn = _page1_th_cell if fill_page else _th_cell
+        cell_fn = _page1_cell if fill_page else _cell
+        metric_fn = _page1_metric_cell if fill_page else _metric_cell
+        note_fn = _page1_note_cell if fill_page else _note_cell
 
     table_data: list[list] = []
     for ri, row in enumerate(rows):
@@ -3502,10 +3551,12 @@ def _make_styled_table(
                 cells.append(note_fn(str(val)) if wrap_col == col_i else cell_fn(str(val)))
             table_data.append(cells)
 
-    rh = row_height or (PDF_TABLE_ROW_H if fill_page else None)
+    rh = row_height or (PDF_TABLE_ROW_H_COMPACT if compact else (PDF_TABLE_ROW_H if fill_page else None))
     row_heights = [rh] * len(table_data) if rh else None
     tbl = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
-    if fill_page:
+    if compact:
+        _apply_compact_table_style(tbl)
+    elif fill_page:
         _apply_page1_table_style(tbl)
     else:
         tbl.setStyle(_table_style_header())
@@ -3696,7 +3747,7 @@ def generate_pdf_report(
         "data_as_of": data_as_of,
         "fiscal_period": fiscal_period or "N/A",
     }
-    page_draw = _pdf_page_decorator(pdf_meta, total_pages=3)
+    page_draw = _pdf_page_decorator(pdf_meta, total_pages=2)
 
     doc = SimpleDocTemplate(
         output_path,
@@ -3840,49 +3891,42 @@ def generate_pdf_report(
     page_hdr = ParagraphStyle(
         "PageHdr", fontName="Helvetica-Bold", fontSize=8.5, textColor=NAVY, spaceAfter=1,
     )
+    compact_rh = PDF_TABLE_ROW_H_COMPACT
     elements.append(Paragraph(
-        f"<b>Page 2 of 3</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Financials · Analysis · {data_as_of}",
+        f"<b>Page 2 of 2</b> · {summary.company_name} ({summary.ticker}) · "
+        f"Financials · Valuation · Peers · {fiscal_period} · {data_as_of}",
         page_hdr,
     ))
 
     if data:
-        fv_rows = build_financial_valuation_summary_table(data, summary)
+        fv_rows = build_financial_valuation_summary_table_pdf(data, summary)
         if fv_rows:
             elements.append(Spacer(1, 1))
             elements.append(_section_title("Financial & Valuation Summary"))
             elements.append(_body("(USD millions except per-share; A = actual, E = forecast)", 5))
             ncols = len(fv_rows[0])
-            metric_w = 1.35 * inch
+            metric_w = 1.28 * inch
             year_w = (content_w - metric_w) / max(ncols - 1, 1)
             fv_tbl = _make_styled_table(
                 fv_rows, [metric_w] + [year_w] * (ncols - 1),
-                fill_page=True, row_height=0.32 * inch,
+                compact=True,
             )
             fv_tbl.splitByRow = 0
             elements.append(fv_tbl)
 
     if full:
-        elements.append(Spacer(1, 2))
-        elements.append(_section_title("Financial Statement Analysis"))
-        elements.append(_body(build_fsa_narrative(full.fsa), 5.5))
-        elements.append(_make_styled_table(
-            build_fsa_table(full.fsa),
-            [content_w * 0.24, content_w * 0.28, content_w * 0.48],
-            wrap_col=2, fill_page=True,
-        ))
-        elements.append(Spacer(1, 2))
+        elements.append(Spacer(1, 1))
         elements.append(_section_title("Technical & Quantitative Analysis"))
-        half_w = content_w * 0.49
+        half_w = content_w * 0.495
         ta_table = _make_styled_table(
             build_technical_table(full.technical),
             [half_w * 0.30, half_w * 0.22, half_w * 0.48],
-            wrap_col=2, allow_split=True, fill_page=True,
+            wrap_col=2, allow_split=True, compact=True,
         )
         quant_table = _make_styled_table(
             build_quant_table(full.quant, full.backtest),
             [half_w * 0.32, half_w * 0.24, half_w * 0.44],
-            wrap_col=2, allow_split=True, fill_page=True,
+            wrap_col=2, allow_split=True, compact=True,
         )
         ta_quant_row = Table([[ta_table, quant_table]], colWidths=[half_w, half_w])
         ta_quant_row.setStyle(TableStyle([
@@ -3892,57 +3936,34 @@ def generate_pdf_report(
             ("RIGHTPADDING", (1, 0), (1, 0), 0),
         ]))
         elements.append(ta_quant_row)
-        elements.append(Spacer(1, 2))
-        industry_snap = _truncate(industry.business_summary, 520)
-        snap_text = (
-            f"<b>Industry Snapshot</b> — {summary.sector} / {summary.industry}. "
-            f"{industry_snap}"
-        )
-        if industry.key_trends:
-            snap_text += "<br/><br/><b>Key Trends</b><br/>" + "<br/>".join(
-                f"• {t}" for t in industry.key_trends[:4]
-            )
-        if industry.risks:
-            snap_text += "<br/><br/><b>Risk Factors</b><br/>" + "<br/>".join(
-                f"• {r}" for r in industry.risks[:3]
-            )
-        elements.append(_section_title("Industry Context"))
-        elements.append(_body(snap_text, 5.5))
 
-    elements.append(PageBreak())
-
-    elements.append(Paragraph(
-        f"<b>Page 3 of 3</b> · {summary.company_name} ({summary.ticker}) · "
-        f"Valuation · Peers · {fiscal_period}",
-        page_hdr,
-    ))
-
-    cross_rows = build_valuation_crosscheck_table(valuation, summary)
-    elements.append(Spacer(1, 2))
-    elements.append(_section_title("Valuation Cross-Check"))
-    elements.append(_make_styled_table(
+    cross_w = content_w * 0.57
+    dcf_w = content_w * 0.43
+    cross_rows = build_valuation_crosscheck_table_pdf(valuation, summary)
+    elements.append(Spacer(1, 1))
+    elements.append(_section_title("Valuation Cross-Check · DCF (Simon FCFE)"))
+    cross_tbl = _make_styled_table(
         cross_rows,
         [
-            content_w * 0.16, content_w * 0.10, content_w * 0.09,
-            content_w * 0.11, content_w * 0.54,
+            cross_w * 0.28, cross_w * 0.17, cross_w * 0.15,
+            cross_w * 0.18, cross_w * 0.22,
         ],
-        wrap_col=4, fill_page=True,
-    ))
-    elements.append(Spacer(1, 2))
-    elements.append(_section_title("DCF Valuation Summary (Simon FCFE)"))
-    elements.append(_make_styled_table(
-        build_dcf_detail_table_compact(valuation.dcf),
-        [content_w * 0.42, content_w * 0.58],
-        fill_page=True,
-    ))
-    elements.append(Spacer(1, 3))
-
-    industry_overview = _truncate(industry.business_summary, 400)
-    industry_text = (
-        f"<b>Industry Overview</b><br/>{industry_overview}<br/><br/>"
-        f"<b>Key Trends</b><br/>" + "<br/>".join(f"• {t}" for t in industry.key_trends[:5]) + "<br/><br/>"
-        f"<b>Risk Factors</b><br/>" + "<br/>".join(f"• {r}" for r in industry.risks[:5])
+        wrap_col=4, compact=True,
     )
+    dcf_tbl = _make_styled_table(
+        build_dcf_detail_table_mini(valuation.dcf),
+        [dcf_w * 0.44, dcf_w * 0.56],
+        compact=True,
+    )
+    val_row = Table([[cross_tbl, dcf_tbl]], colWidths=[cross_w, dcf_w])
+    val_row.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 4),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+    ]))
+    val_row.splitByRow = 0
+    elements.append(val_row)
 
     comp_rows = [[
         _page1_th_cell("Ticker"), _page1_th_cell("Company"), _page1_th_cell("Market Cap"),
@@ -3968,25 +3989,30 @@ def generate_pdf_report(
             content_w * 0.08, content_w * 0.24, content_w * 0.14,
             content_w * 0.08, content_w * 0.12, content_w * 0.12, content_w * 0.22,
         ],
-        rowHeights=[PDF_TABLE_ROW_H] * comp_n,
+        rowHeights=[compact_rh] * comp_n,
     )
-    _apply_page1_table_style(comp_table)
+    _apply_compact_table_style(comp_table)
     comp_table.setStyle(TableStyle([
         ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ebf8ff")),
     ]))
 
-    elements.append(_section_title("Industry & Competitive Landscape"))
-    elements.append(_body(industry_text, 5.5))
-    elements.append(Spacer(1, 2))
-    elements.append(_section_title("Peer Comparison"))
+    elements.append(Spacer(1, 1))
+    elements.append(_section_title("Peer Comparison · Industry Context"))
     comp_table.splitByRow = 0
     elements.append(comp_table)
+
+    industry_bits: list[str] = []
+    if industry.key_trends:
+        industry_bits.append("Trends: " + "; ".join(industry.key_trends[:3]))
+    if industry.risks:
+        industry_bits.append("Risks: " + "; ".join(industry.risks[:2]))
+    industry_line = " · ".join(industry_bits) if industry_bits else _truncate(industry.business_summary, 180)
     elements.append(Spacer(1, 1))
     elements.append(_body(
-        f"* Subject company. {competitors.relative_position}. "
+        f"* Subject company. {competitors.relative_position}. {industry_line} "
         f"{build_financial_health_summary(summary)} "
         f"Source: Yahoo Finance. Not investment advice.",
-        5.5,
+        5.3,
     ))
 
     doc.build(elements, onFirstPage=page_draw, onLaterPages=page_draw)
