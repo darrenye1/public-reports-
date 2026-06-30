@@ -731,7 +731,7 @@
       thead.innerHTML = "<tr>" + COLS.map(function(c) {
         const arrow = sortCol === c ? (sortAsc ? " ^" : " v") : "";
         const title = c === "Composite_Rating"
-          ? " title=\"Blended signal (Val 45%, FSA 20%, TA 20%, Quant 15%). Subtext = confluence %\""
+          ? " title=\"Blended rating (Val 45%, FSA 20%, TA 20%, Quant 15%). Confluence = % of pillars pointing the same way (bullish or bearish).\""
           : c === "TA_Signal"
             ? " title=\"Technical analysis: SMA, RSI, trend\""
             : c === "FSA_Rating"

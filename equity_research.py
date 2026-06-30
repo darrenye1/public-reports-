@@ -2505,6 +2505,14 @@ def build_valuation_crosscheck_table(
     return rows
 
 
+def _short_pdf_note(text: str, max_len: int = 85) -> str:
+    """Trim long valuation notes for compact PDF cells."""
+    t = (text or "").strip()
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1].rstrip() + "…"
+
+
 def build_valuation_crosscheck_table_pdf(
     valuation: ValuationSummary,
     summary: FinancialSummary,
@@ -2519,7 +2527,15 @@ def build_valuation_crosscheck_table_pdf(
         "Analyst consensus (Yahoo Finance)",
         "Blended target (weighted)",
     }
-    return [full[0]] + [row for row in full[1:] if row[0] in keep]
+    rows = [full[0]]
+    for row in full[1:]:
+        if row[0] not in keep:
+            continue
+        r = list(row)
+        if len(r) > 4:
+            r[4] = _short_pdf_note(r[4])
+        rows.append(r)
+    return rows
 
 
 def recommendation_short(valuation: ValuationSummary) -> str:
@@ -3354,6 +3370,16 @@ def _page1_note_cell(text: str) -> Paragraph:
     )
 
 
+def _compact_note_cell(text: str) -> Paragraph:
+    return Paragraph(
+        str(text),
+        ParagraphStyle(
+            name="CpNote", fontName="Helvetica", fontSize=6.5, leading=8.5,
+            textColor=colors.black, wordWrap="CJK",
+        ),
+    )
+
+
 def _apply_page1_table_style(tbl: Table) -> None:
     sty = _table_style_header()
     sty.add("FONTSIZE", (0, 0), (-1, -1), 8)
@@ -3371,6 +3397,7 @@ def _apply_compact_table_style(tbl: Table) -> None:
     sty.add("BOTTOMPADDING", (0, 0), (-1, -1), 5)
     sty.add("LEFTPADDING", (0, 0), (-1, -1), 5)
     sty.add("RIGHTPADDING", (0, 0), (-1, -1), 5)
+    sty.add("VALIGN", (0, 0), (-1, -1), "TOP")
     tbl.setStyle(sty)
 
 
@@ -3523,13 +3550,14 @@ def _make_styled_table(
     fill_page: bool = False,
     row_height: float | None = None,
     compact: bool = False,
+    auto_row_height: bool = False,
 ) -> Table:
     """Build a table with correct header / row-label / data cell styles."""
     if compact:
         th_fn = _page1_th_cell
         cell_fn = _page1_cell
         metric_fn = _page1_metric_cell
-        note_fn = _page1_note_cell
+        note_fn = _compact_note_cell
     else:
         th_fn = _page1_th_cell if fill_page else _th_cell
         cell_fn = _page1_cell if fill_page else _cell
@@ -3543,15 +3571,23 @@ def _make_styled_table(
         elif metric_label_col and len(row) > 1:
             cells: list = [metric_fn(row[0])]
             for col_i, val in enumerate(row[1:], start=1):
-                cells.append(note_fn(str(val)) if wrap_col == col_i else cell_fn(str(val)))
+                sval = str(val)
+                if wrap_col == col_i and compact and not auto_row_height:
+                    sval = _short_pdf_note(sval, 52)
+                cells.append(note_fn(sval) if wrap_col == col_i else cell_fn(sval))
             table_data.append(cells)
         else:
             cells = []
             for col_i, val in enumerate(row):
-                cells.append(note_fn(str(val)) if wrap_col == col_i else cell_fn(str(val)))
+                sval = str(val)
+                if wrap_col == col_i and compact and not auto_row_height:
+                    sval = _short_pdf_note(sval, 52)
+                cells.append(note_fn(sval) if wrap_col == col_i else cell_fn(sval))
             table_data.append(cells)
 
-    rh = row_height or (PDF_TABLE_ROW_H_COMPACT if compact else (PDF_TABLE_ROW_H if fill_page else None))
+    rh = None
+    if not auto_row_height and wrap_col is None:
+        rh = row_height or (PDF_TABLE_ROW_H_COMPACT if compact else (PDF_TABLE_ROW_H if fill_page else None))
     row_heights = [rh] * len(table_data) if rh else None
     tbl = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
     if compact:
@@ -3937,22 +3973,22 @@ def generate_pdf_report(
         ]))
         elements.append(ta_quant_row)
 
-    cross_w = content_w * 0.57
-    dcf_w = content_w * 0.43
+    cross_w = content_w * 0.62
+    dcf_w = content_w * 0.38
     cross_rows = build_valuation_crosscheck_table_pdf(valuation, summary)
     elements.append(Spacer(1, 1))
     elements.append(_section_title("Valuation Cross-Check · DCF (Simon FCFE)"))
     cross_tbl = _make_styled_table(
         cross_rows,
         [
-            cross_w * 0.28, cross_w * 0.17, cross_w * 0.15,
-            cross_w * 0.18, cross_w * 0.22,
+            cross_w * 0.26, cross_w * 0.15, cross_w * 0.13,
+            cross_w * 0.16, cross_w * 0.30,
         ],
-        wrap_col=4, compact=True,
+        wrap_col=4, compact=True, auto_row_height=True,
     )
     dcf_tbl = _make_styled_table(
         build_dcf_detail_table_mini(valuation.dcf),
-        [dcf_w * 0.44, dcf_w * 0.56],
+        [dcf_w * 0.42, dcf_w * 0.58],
         compact=True,
     )
     val_row = Table([[cross_tbl, dcf_tbl]], colWidths=[cross_w, dcf_w])
