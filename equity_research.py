@@ -1479,7 +1479,7 @@ def run_dcf(
         terminal_fcfe=terminal_fcfe_val,
         equity_value_raw=equity_value_raw,
         shares_used=shares,
-        assumptions_note=f"Simon FCFE, Ke={ke:.1%}, g={tg:.1%}, FCFE growth={growth:.1%}, {years}Y",
+        assumptions_note=f"FCFE DCF, Ke={ke:.1%}, g={tg:.1%}, FCFE growth={growth:.1%}, {years}Y",
     )
 
 
@@ -2395,7 +2395,7 @@ def build_valuation_crosscheck_table(
         return "Median / single method"
 
     rows.append([
-        "DCF (Simon FCFE)",
+        "DCF (FCFE)",
         f"${valuation.dcf_target:.2f}" if valuation.dcf_target else "N/A",
         _upside_str(valuation.dcf_target, current),
         _weight_cell("DCF"),
@@ -2505,12 +2505,20 @@ def build_valuation_crosscheck_table(
     return rows
 
 
-def _short_pdf_note(text: str, max_len: int = 85) -> str:
+def _short_pdf_note(text: str, max_len: int = 72) -> str:
     """Trim long valuation notes for compact PDF cells."""
     t = (text or "").strip()
     if len(t) <= max_len:
         return t
     return t[: max_len - 1].rstrip() + "…"
+
+
+_PDF_CROSSCHECK_LABELS = {
+    "DCF (FCFE)": "DCF (FCFE)",
+    "Comps — Blended (median of multiples + uplift anchors)": "Comps — Blended",
+    "Analyst consensus (Yahoo Finance)": "Analyst consensus",
+    "Blended target (weighted)": "Blended target",
+}
 
 
 def build_valuation_crosscheck_table_pdf(
@@ -2521,21 +2529,33 @@ def build_valuation_crosscheck_table_pdf(
     full = build_valuation_crosscheck_table(valuation, summary)
     if not full:
         return full
-    keep = {
-        "DCF (Simon FCFE)",
-        "Comps — Blended (median of multiples + uplift anchors)",
-        "Analyst consensus (Yahoo Finance)",
-        "Blended target (weighted)",
-    }
     rows = [full[0]]
     for row in full[1:]:
-        if row[0] not in keep:
+        if row[0] not in _PDF_CROSSCHECK_LABELS:
             continue
         r = list(row)
+        r[0] = _PDF_CROSSCHECK_LABELS[row[0]]
         if len(r) > 4:
             r[4] = _short_pdf_note(r[4])
         rows.append(r)
     return rows
+
+
+def build_dcf_summary_strip(dcf: DCFResult) -> list[list[str]]:
+    """One-row DCF summary for full-width PDF (avoids nested side tables)."""
+    implied = f"${dcf.implied_price:.2f}" if dcf.implied_price else "N/A"
+    vs = _fmt_pct(dcf.upside_pct, signed=True) if dcf.upside_pct is not None else "N/A"
+    return [
+        ["Ke", "Terminal g", "FCFE growth", "Equity value", "Implied price", "vs. Current"],
+        [
+            f"{dcf.wacc:.2%}",
+            f"{dcf.terminal_growth:.2%}",
+            f"{dcf.fcf_growth:.2%}",
+            format_large_number(dcf.equity_value),
+            implied,
+            vs,
+        ],
+    ]
 
 
 def recommendation_short(valuation: ValuationSummary) -> str:
@@ -2558,7 +2578,7 @@ def build_executive_summary(summary: FinancialSummary, industry: IndustryResearc
         upside = f", implying {pct:+.1f}% upside from the current price of {price}"
     cross = (
         f" Valuation profile: {valuation.valuation_profile_label or 'Standard'}. "
-        "Cross-check uses industry-selected comps, Simon FCFE DCF (where applicable), and analyst consensus; "
+        "Cross-check uses industry-selected comps, FCFE DCF (where applicable), and analyst consensus; "
         "methods that diverge materially are down-weighted."
     )
     thesis = (
@@ -3434,10 +3454,10 @@ def build_dcf_detail_table_mini(dcf: DCFResult) -> list[list[str]]:
 
 
 def build_dcf_detail_table(dcf: DCFResult) -> list[list[str]]:
-    """Simon FCFE DCF walkthrough for PDF display."""
+    """FCFE DCF walkthrough for PDF display."""
     rows: list[list[str]] = [
         ["Line Item", "Value / Formula"],
-        ["Model", "Simon FCFE DCF (equity value to common shareholders)"],
+        ["Model", "FCFE DCF (equity value to common shareholders)"],
         ["Cost of equity (Ke)", f"{dcf.wacc:.2%}"],
         ["Terminal growth (g)", f"{dcf.terminal_growth:.2%}"],
         ["FCFE growth (forecast)", f"{dcf.fcf_growth:.2%}"],
@@ -3572,7 +3592,7 @@ def _make_styled_table(
             cells: list = [metric_fn(row[0])]
             for col_i, val in enumerate(row[1:], start=1):
                 sval = str(val)
-                if wrap_col == col_i and compact and not auto_row_height:
+                if wrap_col == col_i and compact and row_height is not None:
                     sval = _short_pdf_note(sval, 52)
                 cells.append(note_fn(sval) if wrap_col == col_i else cell_fn(sval))
             table_data.append(cells)
@@ -3580,14 +3600,19 @@ def _make_styled_table(
             cells = []
             for col_i, val in enumerate(row):
                 sval = str(val)
-                if wrap_col == col_i and compact and not auto_row_height:
+                if wrap_col == col_i and compact and row_height is not None:
                     sval = _short_pdf_note(sval, 52)
                 cells.append(note_fn(sval) if wrap_col == col_i else cell_fn(sval))
             table_data.append(cells)
 
-    rh = None
-    if not auto_row_height and wrap_col is None:
-        rh = row_height or (PDF_TABLE_ROW_H_COMPACT if compact else (PDF_TABLE_ROW_H if fill_page else None))
+    if row_height is not None:
+        rh = row_height
+    elif auto_row_height:
+        rh = None
+    elif wrap_col is not None:
+        rh = None
+    else:
+        rh = PDF_TABLE_ROW_H_COMPACT if compact else (PDF_TABLE_ROW_H if fill_page else None)
     row_heights = [rh] * len(table_data) if rh else None
     tbl = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
     if compact:
@@ -3646,7 +3671,7 @@ def build_investment_highlights(
 
     if not valuation.dcf_reliable and valuation.dcf_target:
         bullets.append(
-            "Simon FCFE DCF not used in target (low FCFE yield / growth equity); "
+            "FCFE DCF not used in target (low FCFE yield / growth equity); "
             "rely on comps where shown; analyst used only if not stale."
         )
     elif not valuation.analyst_reliable and valuation.analyst_target:
@@ -3973,33 +3998,30 @@ def generate_pdf_report(
         ]))
         elements.append(ta_quant_row)
 
-    cross_w = content_w * 0.62
-    dcf_w = content_w * 0.38
     cross_rows = build_valuation_crosscheck_table_pdf(valuation, summary)
     elements.append(Spacer(1, 1))
-    elements.append(_section_title("Valuation Cross-Check · DCF (Simon FCFE)"))
+    elements.append(_section_title("Valuation Cross-Check"))
     cross_tbl = _make_styled_table(
         cross_rows,
         [
-            cross_w * 0.26, cross_w * 0.15, cross_w * 0.13,
-            cross_w * 0.16, cross_w * 0.30,
+            content_w * 0.22, content_w * 0.12, content_w * 0.11,
+            content_w * 0.12, content_w * 0.43,
         ],
-        wrap_col=4, compact=True, auto_row_height=True,
+        wrap_col=4, compact=True, row_height=PDF_TABLE_ROW_H_COMPACT,
     )
+    cross_tbl.splitByRow = 0
+    elements.append(cross_tbl)
+    elements.append(Spacer(1, 1))
+    elements.append(_section_title("DCF (FCFE) Summary"))
     dcf_tbl = _make_styled_table(
-        build_dcf_detail_table_mini(valuation.dcf),
-        [dcf_w * 0.42, dcf_w * 0.58],
+        build_dcf_summary_strip(valuation.dcf),
+        [content_w / 6] * 6,
+        metric_label_col=False,
         compact=True,
+        row_height=PDF_TABLE_ROW_H_COMPACT,
     )
-    val_row = Table([[cross_tbl, dcf_tbl]], colWidths=[cross_w, dcf_w])
-    val_row.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (0, 0), 4),
-        ("RIGHTPADDING", (1, 0), (1, 0), 0),
-    ]))
-    val_row.splitByRow = 0
-    elements.append(val_row)
+    dcf_tbl.splitByRow = 0
+    elements.append(dcf_tbl)
 
     comp_rows = [[
         _page1_th_cell("Ticker"), _page1_th_cell("Company"), _page1_th_cell("Market Cap"),
@@ -4466,7 +4488,7 @@ def _add_valuation_summary_sheet(
 
     methods = [
         (
-            "DCF (Simon FCFE)",
+            "DCF (FCFE)",
             "=DCF!B28",
             "DCF",
             valuation.excluded_methods.get("DCF", "Included in blend" if valuation.dcf_reliable else ""),
