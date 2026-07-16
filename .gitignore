@@ -7,3 +7,15 @@ reports/.data_state.json
 *.xlsx
 .DS_Store
 Thumbs.db
+
+# Generated reports — regenerate locally; do not merge in Git
+reports/*_research.pdf
+reports/Top20_Summary.pdf
+public/reports/
+docs/reports/
+
+# Generated dashboard data — run sync_website.py after pull
+public/summary-data.js
+public/dashboard-data.js
+docs/summary-data.js
+docs/dashboard-data.js
